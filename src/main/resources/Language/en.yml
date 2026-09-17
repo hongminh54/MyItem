@@ -22,7 +22,7 @@ item:
   min-level: "&c&l✘ &7Both items must be at least level &e{level} &7to transfer!"
   success: "&a&l✔ &7Transfer successful!"
   failed: "&c&l✘ &7Transfer failed! Both items have been downgraded by 1 level."
-
+  not-enough-money: "§cBạn cần §e{cost}$§c để thực hiện chuyển hóa!"
 expire:
   expired: "&c[!] Your item {item} has expired and was destroyed!"
   success-applied: "&a[✓] Expiration time set on the item: &e{time}"

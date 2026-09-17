@@ -137,7 +137,16 @@ public class Tab implements TabCompleter {
                         "FLAME_PULSE", "ANGEL", "SHADOW_DEVOUR", "SONIC_WAVE", "FIRE_RAIN", "STAR_RITUAL",
                         "FIRE_TRIPLE_SHOT", "STAR_FALL", "SUN_STRIKE_AOE", "BLACK_HOLE", "SHADOW_WAVE", "FAIRY_CHAIN", "LILAC_BLOOM_BOMB", "LEAF_STORM",
                         "SPIRIT_WOLF", "PLAGUE_SPREAD", "WIND_TORNADO", "FIRE_ORB", "PLASMA_ORB", "ELECTRIC_BLADE", "FIRST_STRIKE", "TNT_STUCK", "BadLuck",
-                        "Bubble_Deflector", "DARK_FLAME", "DARK_IMPACT", "ROOTS", "VAMPIRISM", "VENOM_SPREAD"
+                        "Bubble_Deflector", "DARK_FLAME", "DARK_IMPACT", "ROOTS", "VAMPIRISM", "VENOM_SPREAD", "SOLAR_SEAL", "RADIANT_WAVE",
+                        "FROST_NOVA", "CHAIN_LIGHTNING", "VOID_PULL", "THORN_ARMOR", "METEOR_STRIKE",
+                        "HEALING_AURA", "SHADOW_STEP", "POISON_CLOUD", "EARTHQUAKE_SLAM", "CELESTIAL_JUDGMENT",
+                        "VENOM_LANCE", "EMBER_TRAIL", "CORRUPTED_GROUND", "STORM_CAGE", "SPECTRAL_HOWL",
+                        "RUNIC_BLAST", "STELLAR_COLLAPSE", "BONE_SPIRE", "TIDAL_CRUSH", "INFERNO_RING",
+                        "FROST_LANCE", "VOID_RIFT", "BLADE_DANCE", "INFERNO_PULSE", "THUNDER_CASCADE",
+                        "CRIMSON_THORNS", "SHADOW_STEP_SLASH", "TOXIC_BLOOM", "GALE_FANG", "EMBER_SPIRAL", "TIDAL_CRESCENT",
+                        "GRAVITY_CRUSH", "CHRONO_FRACTURE", "OBSIDIAN_LANCE", "PLASMA_CASCADE", "WHIRLWIND_SLASH",
+                        "RAZOR_GALE", "HOLY_LANCE", "SANDSTORM_VORTEX", "STATIC_OVERLOAD", "QUICKSAND_MAW",
+                        "TSUNAMI_SURGE", "VOLCANIC_ERUPTION", "AVALANCHE_SLIDE", "WILDFIRE_SPREAD", "HURRICANE_VORTEX"
                 ));
                 case "buff" -> suggestions.addAll(Arrays.asList(
                         "SPEED", "FAST_DIGGING", "INCREASE_DAMAGE", "JUMP", "REGENERATION", "DAMAGE_RESISTANCE",

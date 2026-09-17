@@ -3,7 +3,7 @@ settings:
   # Tỉ lệ chuyển hóa thành công (0-100)
   # Nếu thất bại, cả 2 vật phẩm sẽ bị giảm 1 cấp độ
   success-rate: 70.0
-
+  cost: 5000.0
   # Yêu cầu cấp độ tối thiểu của cả 2 vật phẩm để có thể chuyển hóa
   min-level-required: 1
 

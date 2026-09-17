@@ -62,6 +62,68 @@ public class AbilityManager {
         register(new Roots());
         register(new Vampirism());
         register(new VenomSpread());
+        register(new SOLAR_SEAL());
+        register(new RADIANT_WAVE());
+        register(new FROST_NOVA());
+        register(new CHAIN_LIGHTNING());
+        register(new VOID_PULL());
+        register(new THORN_ARMOR());
+        register(new METEOR_STRIKE());
+        register(new HEALING_AURA());
+        register(new SHADOW_STEP());
+        register(new POISON_CLOUD());
+        register(new EARTHQUAKE_SLAM());
+        register(new CELESTIAL_JUDGMENT());
+        register(new PRISM_REFRACTION());
+        register(new CRYSTAL_SHATTER());
+        register(new AURORA_VEIL());
+        register(new MAGMA_FISSURE());
+        register(new PHANTOM_BLADES());
+        register(new TEMPEST_LANCE());
+        register(new GLACIAL_SPIKE());
+        register(new NEBULA_BURST());
+        //
+        register(new VENOM_LANCE());
+        register(new EMBER_TRAIL());
+        register(new CORRUPTED_GROUND());
+        register(new STORM_CAGE());
+        register(new SPECTRAL_HOWL());
+        register(new RUNIC_BLAST());
+        register(new STELLAR_COLLAPSE());
+        register(new BONE_SPIRE());
+        register(new TIDAL_CRUSH());
+        register(new INFERNO_RING());
+        // ability khác
+        register(new FROST_LANCE());
+        register(new VOID_RIFT());
+        register(new BLADE_DANCE());
+        register(new INFERNO_PULSE());
+        register(new THUNDER_CASCADE());
+        register(new CRIMSON_THORNS());
+        register(new SHADOW_STEP_SLASH());
+        register(new CELESTIAL_JUDGMENT());
+        register(new TOXIC_BLOOM());
+        register(new GALE_FANG());
+        register(new EMBER_SPIRAL());
+        register(new TIDAL_CRESCENT());
+/// //
+        register(new GRAVITY_CRUSH());
+        register(new CHRONO_FRACTURE());
+        register(new OBSIDIAN_LANCE());
+        register(new PLASMA_CASCADE());
+        register(new WHIRLWIND_SLASH());
+        register(new RAZOR_GALE());
+        register(new HOLY_LANCE());
+        register(new SANDSTORM_VORTEX());
+        register(new STATIC_OVERLOAD());
+        register(new QUICKSAND_MAW());
+        // enviroment
+        register(new TSUNAMI_SURGE());
+        register(new VOLCANIC_ERUPTION());
+        register(new AVALANCHE_SLIDE());
+        register(new WILDFIRE_SPREAD());
+        register(new HURRICANE_VORTEX());
+
     }
     /**
      * Hàm quét thư mục Skript/Ability và nạp code động từ file .yml

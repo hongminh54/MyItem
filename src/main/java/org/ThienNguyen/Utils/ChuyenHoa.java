@@ -1,4 +1,6 @@
 package org.ThienNguyen.Utils;
+
+import net.milkbowl.vault.economy.Economy;
 import org.ThienNguyen.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -14,10 +16,13 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.RegisteredServiceProvider;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+
 public class ChuyenHoa implements Listener {
     private final String title = "§0Chuyển Hóa Cấp Độ";
     private final int SLOT_A = 11;
@@ -27,18 +32,40 @@ public class ChuyenHoa implements Listener {
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final Upgrade upgradeUtils = new Upgrade();
     private final Random random = new Random();
+
     private double successRate;
     private int minLevel;
+    private double cost;
+    private Economy economy;
+
     public ChuyenHoa() {
         loadConfig();
+        setupEconomy();
     }
+
     private void loadConfig() {
         FileConfiguration config = Main.getInstance().getChuyenHoaConfig();
         if (config != null) {
             this.successRate = config.getDouble("settings.success-rate", 70.0);
             this.minLevel = config.getInt("settings.min-level-required", 1);
+            this.cost = config.getDouble("settings.cost", 0.0);
         }
     }
+
+    private boolean setupEconomy() {
+        if (Bukkit.getPluginManager().getPlugin("Vault") == null) {
+            Main.getInstance().getLogger().warning("Không tìm thấy Vault! Chức năng trừ tiền khi chuyển hóa sẽ bị vô hiệu hóa.");
+            return false;
+        }
+        RegisteredServiceProvider<Economy> rsp = Bukkit.getServicesManager().getRegistration(Economy.class);
+        if (rsp == null) {
+            Main.getInstance().getLogger().warning("Không tìm thấy Economy provider từ Vault!");
+            return false;
+        }
+        economy = rsp.getProvider();
+        return economy != null;
+    }
+
     public void openGUI(Player player) {
         Inventory gui = Bukkit.createInventory(null, 36, title);
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
@@ -61,6 +88,7 @@ public class ChuyenHoa implements Listener {
         gui.setItem(SLOT_BUTTON, button);
         player.openInventory(gui);
     }
+
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         if (!event.getView().getTitle().equals(title)) return;
@@ -77,9 +105,11 @@ public class ChuyenHoa implements Listener {
             handleTransfer(player, event.getInventory());
         }
     }
+
     private void handleTransfer(Player player, Inventory inv) {
-        var lang = Main.getInstance().getLangManager(); 
+        var lang = Main.getInstance().getLangManager();
         long now = System.currentTimeMillis();
+
         if (cooldowns.containsKey(player.getUniqueId())) {
             long left = (cooldowns.get(player.getUniqueId()) + 5000) - now;
             if (left > 0) {
@@ -87,18 +117,35 @@ public class ChuyenHoa implements Listener {
                 return;
             }
         }
+
         ItemStack itemA = inv.getItem(SLOT_A);
         ItemStack itemB = inv.getItem(SLOT_B);
         if (itemA == null || itemB == null || itemA.getType().isAir() || itemB.getType().isAir()) {
             player.sendMessage(lang.getMessage("item.need-two-items"));
             return;
         }
+
         int levelA = upgradeUtils.getItemLevel(itemA);
         int levelB = upgradeUtils.getItemLevel(itemB);
         if (levelA < minLevel || levelB < minLevel) {
             player.sendMessage(lang.getMessage("item.min-level", "{level}", String.valueOf(minLevel)));
             return;
         }
+
+        // ==== KIỂM TRA & TRỪ TIỀN VAULT ====
+        if (cost > 0) {
+            if (economy == null) {
+                player.sendMessage("§cLỗi hệ thống kinh tế (Vault chưa được cấu hình). Vui lòng báo Admin!");
+                return;
+            }
+            if (economy.getBalance(player) < cost) {
+                player.sendMessage(lang.getMessage("item.not-enough-money", "{cost}", String.valueOf(cost)));
+                return;
+            }
+            economy.withdrawPlayer(player, cost);
+        }
+        // ====================================
+
         if (random.nextDouble() * 100 < successRate) {
             simulateLevelChange(itemA, levelA, levelB);
             simulateLevelChange(itemB, levelB, levelA);
@@ -112,8 +159,10 @@ public class ChuyenHoa implements Listener {
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 0.5f);
             player.sendMessage(lang.getMessage("item.failed"));
         }
+
         cooldowns.put(player.getUniqueId(), now);
     }
+
     private void simulateLevelChange(ItemStack item, int from, int to) {
         int diff = Math.abs(to - from);
         boolean isUpgrading = to > from;
@@ -121,6 +170,7 @@ public class ChuyenHoa implements Listener {
             upgradeUtils.applyStats(item, isUpgrading);
         }
     }
+
     private void applyPunishment(ItemStack item, int currentLevel) {
         if (currentLevel > 0) {
             int newLevel = currentLevel - 1;
@@ -128,6 +178,7 @@ public class ChuyenHoa implements Listener {
             finalizeItem(item, newLevel);
         }
     }
+
     private void finalizeItem(ItemStack item, int newLevel) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
@@ -142,6 +193,7 @@ public class ChuyenHoa implements Listener {
         upgradeUtils.updateItemName(item, newLevel);
         org.ThienNguyen.Lore.StatsLore.updateLore(item);
     }
+
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
         if (!event.getView().getTitle().equals(title)) return;

@@ -421,7 +421,7 @@ public class Main extends JavaPlugin {
                         "\n§3■■      ■■  ■■■■■■■■";
         String description =
                 "\n§f> Tên plugin: §3§lMyitem" +
-                        "\n§f> Phiên bản: §e" + "4.0" +
+                        "\n§f> Phiên bản: §e" + "4.1" +
                         "\n§f> AI: §e" + "1.0" +
                         "\n§f> Tác giả: §dThiện Dev" +
                         "\n§f> Dành cho: §a1.14.x -> 1.21.x" +

@@ -217,6 +217,130 @@ public class GUIAbility extends AbstractPaginatedGui<String> {
         ABILITY_INFO.put("SONIC_WAVE", new AbilityInfo(Material.ECHO_SHARD, "Sóng Âm Thanh Xuyên Phá",
                 "Phóng sóng âm xuyên thẳng về phía trước, gây sát thương cho các sinh vật trên đường đi.",
                 "6% + Cấp × 3% sát thương gốc / mục tiêu"));
+        // VII. Abilities Pack Mới (10 Kỹ Năng Bổ Sung)
+        ABILITY_INFO.put("FROST_NOVA", new AbilityInfo(Material.PACKED_ICE, "Tuyết Sương Bộc Phát",
+                "Tạo vòng tròn băng giá lan rộng, làm chậm và suy yếu mọi thứ bên trong.",
+                "3.0 + (Cấp × 0.25) bán kính; Sát thương: baseDamage * (18% + 7% mỗi cấp)"));
+        ABILITY_INFO.put("CHAIN_LIGHTNING", new AbilityInfo(Material.LIGHTNING_ROD, "Sấm Sét Liên Hoàn",
+                "Sét đánh mục tiêu rồi liên tục phóng sang các kẻ địch lân cận với sát thương giảm dần.",
+                "Tối đa min(6, 2 + cấp/2) lần nảy; Sát thương ban đầu: baseDamage * (28% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("VOID_PULL", new AbilityInfo(Material.ENDER_PEARL, "Hư Không Hút Cạn",
+                "Mở giếng trọng lực kéo kẻ địch về tâm trong 1.5 giây và gây sát thương kết thúc.",
+                "Bán kính 5.0 + (Cấp × 0.3); Sát thương tâm: baseDamage * (15% + 6% mỗi cấp)"));
+        ABILITY_INFO.put("THORN_ARMOR", new AbilityInfo(Material.CACTUS, "Giáp Gai Phản Kích",
+                "Buff hiệu ứng Kháng Chịu cho bản thân và định kỳ phản sát thương kẻ địch xung quanh.",
+                "Bán kính 4.0 + (Cấp × 0.2); Sát thương pulse: baseDamage * (12% + 6% mỗi cấp) mỗi 20 tick"));
+        ABILITY_INFO.put("METEOR_STRIKE", new AbilityInfo(Material.FIRE_CHARGE, "Thiên Thạch Giáng Lâm",
+                "Đánh dấu vùng đất rồi triệu hồi thiên thạch rơi xuống, gây sát thương lớn và hất tung.",
+                "Bán kính 3.0 + (Cấp × 0.2); Sát thương: baseDamage * (30% + 10% mỗi cấp)"));
+        ABILITY_INFO.put("HEALING_AURA", new AbilityInfo(Material.EMERALD, "Hào Quang Hồi Phục",
+                "Tạo vùng hồi máu xung quanh bản thân, liên tục hồi phục cho người chơi đứng bên trong.",
+                "Bán kính 5.0 + (Cấp × 0.25); Hồi máu: baseDamage * (12% + 5% mỗi cấp) mỗi 20 tick"));
+        ABILITY_INFO.put("SHADOW_STEP", new AbilityInfo(Material.BLACK_CONCRETE, "Bước Chân Bóng Tối",
+                "Dịch chuyển tức thời ra sau lưng mục tiêu, đánh bất ngờ kèm hiệu ứng Mù và Suy Yếu.",
+                "Sát thương: baseDamage * (25% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("POISON_CLOUD", new AbilityInfo(Material.DRAGON_BREATH, "Vân Vụ Độc Dược",
+                "Thả đám mây độc tại vị trí mục tiêu, liên tục làm mới hiệu ứng độc với kẻ đứng trong.",
+                "Bán kính 3.0 + (Cấp × 0.15); Sát thương DOT: baseDamage * (6% + 2% mỗi cấp) mỗi tick"));
+        ABILITY_INFO.put("EARTHQUAKE_SLAM", new AbilityInfo(Material.DIAMOND_ORE, "Địa Chấn Sập Sàn",
+                "Dậm chân tạo sóng xung quanh, gây sát thương, hất văng và làm chậm cực mạnh kẻ địch.",
+                "Bán kính 4.0 + (Cấp × 0.3); Sát thương: baseDamage * (28% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("CELESTIAL_JUDGMENT", new AbilityInfo(Material.NETHER_STAR, "Phán Xét Thiên Thượng",
+                "Triệu hồi trụ ánh sáng giáng xuống mục tiêu chính và gây sát thương lan diện rộng.",
+                "Sát thương chính: baseDamage * (40% + 10% mỗi cấp); Sát thương lan: baseDamage * (15% + 6% mỗi cấp)"));
+        // VII. Abilities Pack Mới 3 — 10 Kỹ Năng Bổ Sung
+        ABILITY_INFO.put("VENOM_LANCE", new AbilityInfo(Material.BAMBOO, "Mâu Độc Xuyên Phá",
+                "Phóng mũi mâu độc cắm thẳng vào mục tiêu, gây sát thương tức thời và ngấm độc liên tục trong 3 giây.",
+                "Tức thời: 30% / DOT: 70% tổng sát thương; Sát thương: baseDamage * (24% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("EMBER_TRAIL", new AbilityInfo(Material.BLAZE_POWDER, "Vệt Lửa Tro Tàn",
+                "Trải dài một vệt lửa trước mặt người dùng, thiêu đốt bất kỳ ai đứng trên đường đi qua 4 đợt quét.",
+                "4 đợt quét qua 3 giây + Hiệu ứng cháy; Sát thương: baseDamage * (21% + 7% mỗi cấp)"));
+        ABILITY_INFO.put("CORRUPTED_GROUND", new AbilityInfo(Material.WITHER_ROSE, "Vùng Đất Hắc Ám",
+                "Tạo một vòng tròn hắc khí tại vị trí mục tiêu, liên tục bào mòn và làm suy yếu kẻ địch trong 4 giây.",
+                "4 đợt tick mỗi giây kèm Suy Yếu; Sát thương: baseDamage * (25% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("STORM_CAGE", new AbilityInfo(Material.LIGHTNING_ROD, "Lồng Sấm Sét",
+                "Triệu hồi 4 trụ sét xoay quanh một mục tiêu duy nhất, giật điện liên tục và trói chân tại chỗ.",
+                "Chỉ định đơn mục tiêu, 4 xung nhịp qua 3 giây; Sát thương: baseDamage * (27% + 9% mỗi cấp)"));
+        ABILITY_INFO.put("SPECTRAL_HOWL", new AbilityInfo(Material.GHAST_TEAR, "Tiếng Hét Hồn Ma",
+                "Phát ra tiếng hú hình nón phía trước, làm mù, làm chậm, hất văng và gây sát thương kẻ địch.",
+                "Sát thương: baseDamage * (26% + 9% mỗi cấp)"));
+        ABILITY_INFO.put("RUNIC_BLAST", new AbilityInfo(Material.END_ROD, "Pháp Ấn Nổ Tung",
+                "Tạo một vòng tròn rune xoay tròn trên không, tích tụ rồi phát nổ thành các mảnh sáng sắc lẹm.",
+                "Bán kính 4.0 + (Cấp × 0.2); Sát thương: baseDamage * (27% + 9% mỗi cấp)"));
+        ABILITY_INFO.put("STELLAR_COLLAPSE", new AbilityInfo(Material.NETHER_STAR, "Sụp Đổ Tinh Vân",
+                "Tạo một tiểu hắc tinh hút các luồng sáng vào tâm rồi đại nổ một lần cực mạnh.",
+                "Bán kính 5.0 + (Cấp × 0.2); Sát thương: baseDamage * (33% + 12% mỗi cấp)"));
+        ABILITY_INFO.put("BONE_SPIRE", new AbilityInfo(Material.BONE, "Cọc Xương Gai Đôi",
+                "Mọc lên một cột xương xoắn kép từ dưới đất, phóng mục tiêu lên cao và trói chân khi đáp xuống.",
+                "Chiều cao: 3.5 + (Cấp × 0.1); Sát thương: baseDamage * (25% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("TIDAL_CRUSH", new AbilityInfo(Material.WATER_BUCKET, "Sóng Triều Cuốn Phũ",
+                "Tạo cột nước cong cuộn trào về phía trước rồi giáng một đòn sấm sét nước với lực đẩy mạnh.",
+                "Bán kính 3.5 + (Cấp × 0.15); Sát thương: baseDamage * (26% + 9% mỗi cấp)"));
+        ABILITY_INFO.put("INFERNO_RING", new AbilityInfo(Material.MAGMA_CREAM, "Vòng Tròn Địa Ngục",
+                "Tạo một vòng lửa bùng nổ lan rộng tốc độ cao trong chớp mắt rồi dập tắt ngay lập tức.",
+                "Bán kính 5.0 + (Cấp × 0.15); Sát thương: baseDamage * (23% + 7% mỗi cấp)"));
+        // VII. Abilities Pack Mới (10 Kỹ Năng Bổ Sung)
+        ABILITY_INFO.put("FROST_LANCE", new AbilityInfo(Material.SNOWBALL, "Thương Băng Giá",
+                "Mọc lên một cột băng đâm xuyên mục tiêu kèm theo 4 vòng sương giá nổ liên tiếp.",
+                "Bán kính 2.2; Sát thương: baseDamage * (20% + 12% mỗi cấp) mỗi hit (4 hits)"));
+        ABILITY_INFO.put("VOID_RIFT", new AbilityInfo(Material.ENDER_PEARL, "Khe Nứt Hư Không",
+                "Tạo xoáy hắc ám hút hạt không gian rồi phát nổ hủy diệt 4 lần liên tiếp.",
+                "Bán kính 2.0; Sát thương: baseDamage * (25% + 15% mỗi cấp) mỗi hit (4 hits)"));
+        ABILITY_INFO.put("BLADE_DANCE", new AbilityInfo(Material.IRON_SWORD, "Vũ Khúc Kiếm Quang",
+                "4 thanh kiếm vô hình quay quanh mục tiêu và liên tục chém vào thời điểm định sẵn.",
+                "Bán kính 1.8; Sát thương: baseDamage * (20% + 14% mỗi cấp) mỗi hit (4 hits)"));
+        ABILITY_INFO.put("INFERNO_PULSE", new AbilityInfo(Material.MAGMA_CREAM, "Xung Kích Địa Ngục",
+                "Vòng lửa liên tục lan tỏa và bùng nổ dung nham quét qua khu vực xung quanh.",
+                "Bán kính 2.4; Sát thương: baseDamage * (30% + 18% mỗi cấp) mỗi hit (3 hits)"));
+        ABILITY_INFO.put("THUNDER_CASCADE", new AbilityInfo(Material.LIGHTNING_ROD, "Sấm Sét Trút Xuống",
+                "Gọi 4 cột sét đánh xuống các điểm lân cận mục tiêu theo chuỗi liên hoàn chớp nhoáng.",
+                "Bán kính 1.7; Sát thương: baseDamage * (22% + 16% mỗi cấp) mỗi hit (4 hits)"));
+        ABILITY_INFO.put("CRIMSON_THORNS", new AbilityInfo(Material.SWEET_BERRIES, "Gai Máu Trồi Lên",
+                "Mọc lên 3 vòng gai máu đỏ rực từ mặt đất nở rộng dần ra ngoài theo bán kính tăng dần.",
+                "Bán kính 2.1; Sát thương: baseDamage * (28% + 20% mỗi cấp) mỗi hit (3 hits)"));
+        ABILITY_INFO.put("SHADOW_STEP_SLASH", new AbilityInfo(Material.BLACK_WOOL, "Ảnh Bộ Trảm",
+                "Ảnh ảo của người dùng liên tục lướt tới từ mọi hướng, vung kiếm chém 4 lần chớp nhoáng.",
+                "Bán kính 1.9; Sát thương: baseDamage * (24% + 17% mỗi cấp) mỗi hit (4 hits)"));
+        ABILITY_INFO.put("CELESTIAL_JUDGMENT", new AbilityInfo(Material.NETHER_STAR, "Phán Xét Tinh Tú",
+                "Vòng sáng tinh tú bao quanh kết hợp 3 cột ánh sáng thiên đàng giáng thẳng xuống mục tiêu.",
+                "Bán kính 1.8; Sát thương: baseDamage * (35% + 22% mỗi cấp) mỗi hit (3 hits)"));
+        ABILITY_INFO.put("TOXIC_BLOOM", new AbilityInfo(Material.SPORE_BLOSSOM, "Đóa Hoa Độc Dược",
+                "Đóa hoa độc nở rộ 4 đợt, tỏa ra các bào tử xanh đậm làm mục tiêu ngấm độc liên tục.",
+                "Bán kính 2.0; Sát thương: baseDamage * (15% + 10% mỗi cấp) mỗi hit (4 hits)"));
+        ABILITY_INFO.put("GALE_FANG", new AbilityInfo(Material.FEATHER, "Nanh Gió Cuồng Phong",
+                "3 luồng nanh gió nén chặt xé gió lao thẳng qua mục tiêu từ các hướng khác nhau.",
+                "Bán kính 1.6; Sát thương: baseDamage * (40% + 25% mỗi cấp) mỗi hit (3 hits)"));
+        // VIII. Abilities Pack Mới 4 — 10 Kỹ Năng Bổ Sung
+        ABILITY_INFO.put("GRAVITY_CRUSH", new AbilityInfo(Material.CRYING_OBSIDIAN, "Trọng Lực Nghiền Nát",
+                "Một quả cầu trọng lực tối tăm hạ xuống ghim chặt mục tiêu tại chỗ, sau đó giáng xuống gây nổ diện rộng.",
+                "Bán kính 3.8 + (Cấp × 0.15); Sát thương: baseDamage * (30% + 10% mỗi cấp)"));
+        ABILITY_INFO.put("CHRONO_FRACTURE", new AbilityInfo(Material.CLOCK, "Rạn Nứt Thời Gian",
+                "Bọc mục tiêu trong một bong bóng thời gian, kim đồng hồ quay nhanh dần rồi vỡ tung thành các vòng sóng.",
+                "Bán kính 3.0 + (Cấp × 0.15); Sát thương: baseDamage * (24% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("OBSIDIAN_LANCE", new AbilityInfo(Material.OBSIDIAN, "Thương Hắc Diễm",
+                "Một cọc đá hắc diễm 4 cạnh sắc lẹm trồi lên cực nhanh từ dưới chân mục tiêu, làm nứt mặt đất xung quanh.",
+                "Chiều cao 4.0 + (Cấp × 0.1); Sát thương: baseDamage * (28% + 9% mỗi cấp)"));
+        ABILITY_INFO.put("PLASMA_CASCADE", new AbilityInfo(Material.MAGENTA_DYE, "Mưa Cầu Plasma",
+                "5 quả cầu plasma rơi xuống các điểm ngẫu nhiên quanh mục tiêu và lần lượt phát nổ nối tiếp nhau.",
+                "Bán kính rải 4.0 + (Cấp × 0.15), nổ 1.8/quả, mỗi mục tiêu chỉ trúng 1 lần; Tổng sát thương: baseDamage * (31% + 11% mỗi cấp)"));
+        ABILITY_INFO.put("WHIRLWIND_SLASH", new AbilityInfo(Material.DIAMOND_SWORD, "Trảm Cuồng Phong",
+                "Người dùng xoay 2 vòng với vệt kiếm sáng quanh thân, chém trúng mọi kẻ địch trong tầm 1 lần.",
+                "Bán kính 3.0 + (Cấp × 0.12), quanh bản thân; Sát thương: baseDamage * (25% + 8% mỗi cấp)"));
+        ABILITY_INFO.put("RAZOR_GALE", new AbilityInfo(Material.IRON_AXE, "Nanh Gió Lưỡi Dao",
+                "Phóng 3 lưỡi gió hình lưỡi liềm theo hình quạt hẹp về phía trước, xuyên qua mọi thứ trên đường bay.",
+                "Tầm bay 10.0 + (Cấp × 0.2), mỗi lưỡi tính sát thương riêng (có thể trúng nhiều lưỡi); Sát thương: baseDamage * (23% + 7% mỗi cấp) / lưỡi"));
+        ABILITY_INFO.put("HOLY_LANCE", new AbilityInfo(Material.BEACON, "Thương Thánh Quang",
+                "Một ngọn thương ánh sáng thánh khổng lồ giáng xuống từ trên cao và nổ thành vòng tròn vàng kim.",
+                "Bán kính 3.2 + (Cấp × 0.15); Sát thương: baseDamage * (34% + 13% mỗi cấp)"));
+        ABILITY_INFO.put("SANDSTORM_VORTEX", new AbilityInfo(Material.SAND, "Bão Cát Xoáy",
+                "Một cơn lốc cát hình thành quanh mục tiêu trong 3.5 giây, hút nhẹ vào tâm và gây Mù Lòa định kỳ.",
+                "Bán kính 2.8 + (Cấp × 0.1), 7 đợt tick trong 3.5 giây; Tổng sát thương: baseDamage * (22% + 7% mỗi cấp)"));
+        ABILITY_INFO.put("STATIC_OVERLOAD", new AbilityInfo(Material.REDSTONE_TORCH, "Quá Tải Tĩnh Điện",
+                "Một trường điện bao trùm khu vực trong 3 giây, phóng tia chớp ngẫu nhiên và giật điện định kỳ.",
+                "Bán kính 3.2 + (Cấp × 0.12), 6 đợt tick trong 3 giây; Tổng sát thương: baseDamage * (26% + 9% mỗi cấp)"));
+        ABILITY_INFO.put("QUICKSAND_MAW", new AbilityInfo(Material.MUD, "Miệng Cát Lún",
+                "Mặt đất quanh mục tiêu hoá thành cát lún trong 3 giây, kéo lún xuống và làm chậm liên tục.",
+                "Bán kính 2.5 + (Cấp × 0.1), 6 đợt tick trong 3 giây; Tổng sát thương: baseDamage * (21% + 7% mỗi cấp)"));
     }
 
     // ================== IMPLEMENT KHUNG CỦA AbstractPaginatedGui ==================
@@ -278,7 +402,7 @@ public class GUIAbility extends AbstractPaginatedGui<String> {
             AbilityData.setAbility(heldItem, key, level, 0.0);
             org.ThienNguyen.Lore.AbilityLore.updateLore(heldItem);
             player.sendMessage(ChatColor.RED + "Đã gỡ bỏ kỹ năng " + ChatColor.AQUA + info.displayName
-                    + ChatColor.RED + " khỏi vật phẩm đang cầm (đặt tỉ lệ về 0%).");
+                    + ChatColor.RED + " khỏi vật phẩm đang cầm.");
             INSTANCE.open(player);
             return;
         }
@@ -289,7 +413,7 @@ public class GUIAbility extends AbstractPaginatedGui<String> {
                 + ChatColor.GREEN + " cho " + ChatColor.AQUA + info.displayName
                 + ChatColor.GREEN + " vào khung chat, theo định dạng:");
         player.sendMessage(ChatColor.YELLOW + "<cấp độ> <tỉ lệ>" + ChatColor.GRAY + "   (VD: "
-                + ChatColor.WHITE + "4 2" + ChatColor.GRAY + " = cấp 4, 2% tỉ lệ)");
+                + ChatColor.WHITE + "4 20" + ChatColor.GRAY + " = cấp 4, 20% tỉ lệ)");
         player.sendMessage(ChatColor.GRAY + "Gõ " + ChatColor.RED + CANCEL_KEYWORD
                 + ChatColor.GRAY + " để huỷ.");
         GUIListener.requestChatInput(player, CANCEL_KEYWORD,
@@ -385,7 +509,7 @@ public class GUIAbility extends AbstractPaginatedGui<String> {
             }
             lore.add("");
             lore.add(ChatColor.GREEN + "✎ Click: nhập tỉ lệ % và cấp độ");
-            lore.add(ChatColor.RED + "⇧ Shift+Click: Gỡ bỏ kỹ năng (tỉ lệ về 0%)");
+            lore.add(ChatColor.RED + "⇧ Shift+Click: Gỡ bỏ kỹ năng");
 
             meta.setLore(lore);
             item.setItemMeta(meta);

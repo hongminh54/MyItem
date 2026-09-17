@@ -22,7 +22,7 @@ item:
   min-level: "&c&l✘ &7Cả 2 vật phẩm phải đạt tối thiểu cấp &e{level} &7để chuyển đổi!"
   success: "&a&l✔ &7Chuyển đổi thành công!"
   failed: "&c&l✘ &7Chuyển đổi thất bại! Cả 2 vật phẩm đã bị hạ 1 cấp."
-
+  not-enough-money: "§cBạn cần §e{cost}$§c để thực hiện chuyển hóa!"
 expire:
   expired: "&c[!] Vật phẩm {item} của bạn đã hết hạn sử dụng và bị hủy!"
   success-applied: "&a[✓] Đã gắn hạn sử dụng cho vật phẩm: &e{time}"
