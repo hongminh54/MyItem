@@ -27,14 +27,14 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitRunnable;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
 public class CacheListener implements Listener {
-    private static final NamespacedKey KEY_OWNER_TAG = new NamespacedKey(Main.getInstance(), "owner_tag");
     private static final NamespacedKey KEY_PCT_DAMAGE          = new NamespacedKey(Main.getInstance(), "pct_damage");
     private static final NamespacedKey KEY_PCT_CRIT_DMG_RED    = new NamespacedKey(Main.getInstance(), "pct_critical_damage_reduction");
     private static final NamespacedKey KEY_PCT_ARMOR           = new NamespacedKey(Main.getInstance(), "pct_armor");
@@ -52,24 +52,6 @@ public class CacheListener implements Listener {
             EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET,
             EquipmentSlot.HAND, EquipmentSlot.OFF_HAND
     };
-    private static boolean isOwner(Player player, ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return true;
-        ItemMeta meta = item.getItemMeta();
-        var pdc = meta.getPersistentDataContainer();
-        if (!pdc.has(KEY_OWNER_TAG, PersistentDataType.STRING)) {
-            return true;
-        }
-        String ownersString = pdc.get(KEY_OWNER_TAG, PersistentDataType.STRING);
-        if (ownersString == null || ownersString.isEmpty()) return true;
-        String playerName = player.getName().toLowerCase();
-        String[] allowedPlayers = ownersString.split(",");
-        for (String owner : allowedPlayers) {
-            if (owner.trim().toLowerCase().equals(playerName)) {
-                return true;
-            }
-        }
-        return false;
-    }
     private static final org.bukkit.attribute.Attribute KNOCKBACK_RESISTANCE_ATTRIBUTE =
             resolveAttribute("knockback_resistance", "KNOCKBACK_RESISTANCE", "GENERIC_KNOCKBACK_RESISTANCE");
     private static org.bukkit.attribute.Attribute resolveAttribute(String registryKey, String... legacyFieldNames) {
@@ -95,11 +77,13 @@ public class CacheListener implements Listener {
                 "). Knockback resistance stat will not be applied.");
         return null;
     }
+
+    // ------------------------------------------------------------------ events
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         JewelryManager.loadDataToCache(p);
-        delayRefresh(e.getPlayer());
+        scheduleRefresh(p);
     }
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerDeath(PlayerDeathEvent e) {
@@ -107,17 +91,20 @@ public class CacheListener implements Listener {
         p.removeMetadata("DEEP_WOUND_REDUCTION", Main.getInstance());
         p.removeMetadata("DEEP_WOUND_TASK", Main.getInstance());
         p.removeMetadata("CURSED_REDUCTION", Main.getInstance());
-        delayRefresh(e.getPlayer());
+        scheduleRefresh(p);
     }
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent e) {
-        PlayerCombatCache.invalidate(e.getPlayer().getUniqueId());
-        JewelryManager.invalidateJewelryCache(e.getPlayer().getUniqueId());
+        UUID uuid = e.getPlayer().getUniqueId();
+        PlayerCombatCache.invalidate(uuid);
+        JewelryManager.invalidateJewelryCache(uuid);
+        PENDING_REFRESH.remove(uuid);
+        LAST_COMBO_MESSAGE_TIME.remove(uuid); // trước đây map này phình mãi theo số player từng vào server
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent e) {
         if (e.getWhoClicked() instanceof Player p) {
-            delayRefresh(p);
+            scheduleRefresh(p);
         }
         if (e.getInventory().getHolder() instanceof JewelryManager jm) {
             jm.onClick(e);
@@ -126,7 +113,7 @@ public class CacheListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent e) {
         if (e.getPlayer() instanceof Player p) {
-            delayRefresh(p);
+            scheduleRefresh(p);
         }
         if (e.getInventory().getHolder() instanceof JewelryManager jm) {
             jm.onClose(e);
@@ -134,96 +121,97 @@ public class CacheListener implements Listener {
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onItemHold(PlayerItemHeldEvent e) {
-        delayRefresh(e.getPlayer());
+        scheduleRefresh(e.getPlayer());
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDropItem(org.bukkit.event.player.PlayerDropItemEvent e) {
-        delayRefresh(e.getPlayer());
+        scheduleRefresh(e.getPlayer());
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSwapHandItems(PlayerSwapHandItemsEvent e) {
-        delayRefresh(e.getPlayer());
+        scheduleRefresh(e.getPlayer());
     }
-    private void delayRefresh(Player player) {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (player.isOnline()) {
-                    refreshCache(player);
-                }
-            }
-        }.runTaskLater(Main.getInstance(), 5L);
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(org.bukkit.event.player.PlayerRespawnEvent e) {
+        scheduleRefresh(e.getPlayer());
     }
+
+    /**
+     * Debounce: mỗi player chỉ có TỐI ĐA 1 refresh đang chờ.
+     * Trước đây mỗi click/đổi slot/thả đồ tạo 1 BukkitRunnable riêng -> kéo chuột trong inventory
+     * = hàng chục lần refreshCache (mỗi lần đọc toàn bộ item + config) chồng lên nhau.
+     */
+    private static final Set<UUID> PENDING_REFRESH = ConcurrentHashMap.newKeySet();
+    public static void scheduleRefresh(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!PENDING_REFRESH.add(uuid)) return;
+        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+            PENDING_REFRESH.remove(uuid);
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) refreshCache(p);
+        }, 5L);
+    }
+
     private static final ConcurrentHashMap<UUID, Long> LAST_COMBO_MESSAGE_TIME = new ConcurrentHashMap<>();
     private static final long MESSAGE_COOLDOWN_MS = 3000L;
+
+    // ------------------------------------------------------------------ percent
     private static final class PercentAccumulator {
-        double bonusDmg;
-        double armor;
-        double trueDmg;
-        double critDmgReduction;
-        double magicDmg;
-        double magicDef;
-        double pveBonus;
-        double pvpBonus;
-        double allDamage;
-        double bowDamage;
-        double deathDamage;
-        double effectResistance;
+        double bonusDmg, armor, trueDmg, critDmgReduction, magicDmg, magicDef;
+        double pveBonus, pvpBonus, allDamage, bowDamage, deathDamage, effectResistance;
     }
-    private static void applyAccumulatedPercents(PlayerCombatCache.CombatStats stats,
-                                                 double pctBonusDmg, double pctArmor, double pctTrueDmg,
-                                                 double pctCritDmgReduction, double pctMagicDmg, double pctMagicDef,
-                                                 double pctPveBonus, double pctPvpBonus, double pctAllDamage,
-                                                 double pctBowDamage, double pctDeathDamage, double pctEffectResistance) {
-        if (pctCritDmgReduction != 0.0) stats.totalCritDamageReduction *= (1.0 + (pctCritDmgReduction / 100.0));
-        if (pctBonusDmg != 0.0) {
-            stats.totalBonusDmg *= (1.0 + (pctBonusDmg / 100.0));
-        }
-        if (pctArmor != 0.0)       stats.totalArmor        *= (1.0 + (pctArmor / 100.0));
-        if (pctTrueDmg != 0.0)     stats.totalTrueDamage   *= (1.0 + (pctTrueDmg / 100.0));
-        if (pctMagicDmg != 0.0)    stats.totalMagicDamage  *= (1.0 + (pctMagicDmg / 100.0));
-        if (pctMagicDef != 0.0)    stats.totalMagicDefense *= (1.0 + (pctMagicDef / 100.0));
-        if (pctPveBonus != 0.0)    stats.totalPveBonus     *= (1.0 + (pctPveBonus / 100.0));
-        if (pctPvpBonus != 0.0)    stats.totalPvpBonus     *= (1.0 + (pctPvpBonus / 100.0));
-        if (pctAllDamage != 0.0)   stats.totalAllDamage    *= (1.0 + (pctAllDamage / 100.0));
-        if (pctBowDamage != 0.0)   stats.totalBowDamage    *= (1.0 + (pctBowDamage / 100.0));
-        if (pctDeathDamage != 0.0) stats.totalDeathDamage *= (1.0 + (pctDeathDamage / 100.0));
-        if (pctEffectResistance != 0.0) stats.totalEffectResistance *= (1.0 + (pctEffectResistance / 100.0));
+    private static void applyAccumulatedPercents(PlayerCombatCache.CombatStats stats, PercentAccumulator a) {
+        if (a.critDmgReduction != 0.0) stats.totalCritDamageReduction *= (1.0 + (a.critDmgReduction / 100.0));
+        if (a.bonusDmg != 0.0)         stats.totalBonusDmg            *= (1.0 + (a.bonusDmg / 100.0));
+        if (a.armor != 0.0)            stats.totalArmor               *= (1.0 + (a.armor / 100.0));
+        if (a.trueDmg != 0.0)          stats.totalTrueDamage          *= (1.0 + (a.trueDmg / 100.0));
+        if (a.magicDmg != 0.0)         stats.totalMagicDamage         *= (1.0 + (a.magicDmg / 100.0));
+        if (a.magicDef != 0.0)         stats.totalMagicDefense        *= (1.0 + (a.magicDef / 100.0));
+        if (a.pveBonus != 0.0)         stats.totalPveBonus            *= (1.0 + (a.pveBonus / 100.0));
+        if (a.pvpBonus != 0.0)         stats.totalPvpBonus            *= (1.0 + (a.pvpBonus / 100.0));
+        if (a.allDamage != 0.0)        stats.totalAllDamage           *= (1.0 + (a.allDamage / 100.0));
+        if (a.bowDamage != 0.0)        stats.totalBowDamage           *= (1.0 + (a.bowDamage / 100.0));
+        if (a.deathDamage != 0.0)      stats.totalDeathDamage         *= (1.0 + (a.deathDamage / 100.0));
+        if (a.effectResistance != 0.0) stats.totalEffectResistance    *= (1.0 + (a.effectResistance / 100.0));
     }
-    private static boolean isAllowedPercent(ItemStack item, FileConfiguration config, String stat, EquipmentSlot currentSlot) {
-        if (item == null || !item.hasItemMeta()) return true;
-        NamespacedKey key = new NamespacedKey(Main.getInstance(), "slot_pct_" + stat.toLowerCase());
-        String requiredSlot = item.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
-        if (requiredSlot != null) {
-            if (requiredSlot.equalsIgnoreCase("any")) return true;
-            String current = normalizeSlot(currentSlot);
-            String[] allowedSlots = requiredSlot.split(",");
-            for (String s : allowedSlots) {
-                if (s.trim().equalsIgnoreCase(current)) return true;
-            }
-            return false;
-        }
-        if (config == null) return true;
-        List<String> list = config.getStringList("stats-slots." + stat);
-        if (list == null || list.isEmpty()) return true;
-        String currentNormalized = normalizeSlot(currentSlot);
-        String originalName = currentSlot.name();
-        for (String allowed : list) {
-            if (allowed.equalsIgnoreCase(currentNormalized) ||
-                    allowed.equalsIgnoreCase(originalName)) {
-                return true;
-            }
-        }
-        return false;
+    /** slot == null -> trang sức (không kiểm tra slot). */
+    private static double pct(PersistentDataContainer pdc, NamespacedKey key, FileConfiguration cfg, String stat, EquipmentSlot slot) {
+        Double v = pdc.get(key, PersistentDataType.DOUBLE);
+        if (v == null) return 0.0;
+        if (slot != null && !ItemStatHelper.allowed(pdc, cfg, stat, slot, true)) return 0.0;
+        return v;
     }
+    private static void accumulatePercents(PersistentDataContainer pdc, PercentAccumulator a, FileConfiguration cfg, EquipmentSlot slot) {
+        a.bonusDmg         += pct(pdc, KEY_PCT_DAMAGE, cfg, "damage", slot);
+        a.critDmgReduction += pct(pdc, KEY_PCT_CRIT_DMG_RED, cfg, "critical_damage_reduction", slot);
+        a.armor            += pct(pdc, KEY_PCT_ARMOR, cfg, "armor", slot);
+        a.trueDmg          += pct(pdc, KEY_PCT_TRUE_DMG, cfg, "true_damage", slot);
+        a.magicDmg         += pct(pdc, KEY_PCT_MAGIC_DMG, cfg, "magic_damage", slot);
+        a.magicDef         += pct(pdc, KEY_PCT_MAGIC_DEF, cfg, "magic_defense", slot);
+        a.pveBonus         += pct(pdc, KEY_PCT_PVE, cfg, "pve_damage", slot);
+        a.pvpBonus         += pct(pdc, KEY_PCT_PVP, cfg, "pvp_damage", slot);
+        a.allDamage        += pct(pdc, KEY_PCT_ALL_DMG, cfg, "all_damage", slot);
+        a.bowDamage        += pct(pdc, KEY_PCT_BOW_DMG, cfg, "bow_damage", slot);
+        a.deathDamage      += pct(pdc, KEY_PCT_DEATH_DMG, cfg, "death_damage", slot);
+        a.effectResistance += pct(pdc, KEY_PCT_EFFECT_RES, cfg, "effect_resistance", slot);
+    }
+
+    private static boolean ok(PersistentDataContainer pdc, FileConfiguration cfg, String stat, EquipmentSlot slot) {
+        return ItemStatHelper.allowed(pdc, cfg, stat, slot, false);
+    }
+
+    // ------------------------------------------------------------------ refresh
     public static void refreshCache(Player player) {
         if (player == null || !player.isOnline()) return;
-        PlayerCombatCache.CombatStats stats = PlayerCombatCache.getStats(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        PlayerCombatCache.CombatStats stats = PlayerCombatCache.getStats(uuid);
         stats.clear();
-        FileConfiguration slotConfig   = Main.getInstance().getStatsSettingsConfig();
-        FileConfiguration gemConfig    = Main.getInstance().getGemConfig();
-        FileConfiguration eConfig      = Main.getInstance().getElementConfig();
-        FileConfiguration comboConfig  = Main.getInstance().getComboConfig();
+        Main main = Main.getInstance();
+        FileConfiguration slotConfig  = main.getStatsSettingsConfig();
+        FileConfiguration gemConfig   = main.getGemConfig();
+        FileConfiguration eConfig     = main.getElementConfig();
+        FileConfiguration comboConfig = main.getComboConfig();
+
         String currentComboId = org.ThienNguyen.Listener.ItemCombo.ComboListener.getFullSetComboId(player);
         if (currentComboId == null) currentComboId = "";
         String comboMetadataKey = "last_notified_combo";
@@ -233,12 +221,11 @@ public class CacheListener implements Listener {
         }
         if (!currentComboId.equals(lastNotifiedId)) {
             if (!currentComboId.isEmpty()) {
-                player.setMetadata(comboMetadataKey, new FixedMetadataValue(Main.getInstance(), currentComboId));
+                player.setMetadata(comboMetadataKey, new FixedMetadataValue(main, currentComboId));
             } else {
-                player.removeMetadata(comboMetadataKey, Main.getInstance());
+                player.removeMetadata(comboMetadataKey, main);
             }
             long now = System.currentTimeMillis();
-            UUID uuid = player.getUniqueId();
             long lastSent = LAST_COMBO_MESSAGE_TIME.getOrDefault(uuid, 0L);
             if (now - lastSent >= MESSAGE_COOLDOWN_MS) {
                 if (!currentComboId.isEmpty()) {
@@ -250,8 +237,8 @@ public class CacheListener implements Listener {
                 LAST_COMBO_MESSAGE_TIME.put(uuid, now);
             }
         }
-        if (currentComboId != null) {
-            org.bukkit.configuration.ConfigurationSection comboStats = comboConfig.getConfigurationSection(currentComboId + ".stats");
+        if (!currentComboId.isEmpty()) {
+            ConfigurationSection comboStats = comboConfig.getConfigurationSection(currentComboId + ".stats");
             if (comboStats != null) {
                 for (String key : comboStats.getKeys(false)) {
                     updateStat(stats, key, comboStats.getDouble(key));
@@ -261,159 +248,115 @@ public class CacheListener implements Listener {
         stats.clearWeaponElements();
         stats.bestAbilities.clear();
         PercentAccumulator pctAcc = new PercentAccumulator();
+        boolean mmoCore = isMMOCoreAvailable(); // hoist: trước đây gọi lại cho từng item
+
         for (EquipmentSlot slot : ALL_SLOTS) {
             ItemStack item = player.getInventory().getItem(slot);
-            if (item == null || item.getType() == Material.AIR) continue;
-            if (!isOwner(player, item)) continue;
+            // item không có meta = không có PDC/lore -> không thể mang stat custom => bỏ qua toàn bộ
+            if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) continue;
+            ItemMeta meta = item.getItemMeta();                      // CHỈ 1 lần clone meta / item
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            if (!ItemStatHelper.isOwner(player, pdc)) continue;
+
             Map<String, Integer> itemDefs = ElementCore.getItemDefenses(item);
-            itemDefs.forEach((elem, lv) -> {
-                stats.elementDefenses.merge(elem, lv, Integer::sum);
-            });
-            if (isMMOCoreAvailable() && !MMOCORE.canUse(player, item)) continue;
-            if (item.hasItemMeta()) {
-                var pdc = item.getItemMeta().getPersistentDataContainer();
-                if (pdc.has(KEY_PCT_DAMAGE, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "damage", slot))
-                    pctAcc.bonusDmg += pdc.get(KEY_PCT_DAMAGE, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_CRIT_DMG_RED, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "critical_damage_reduction", slot))
-                    pctAcc.critDmgReduction += pdc.get(KEY_PCT_CRIT_DMG_RED, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_ARMOR, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "armor", slot))
-                    pctAcc.armor += pdc.get(KEY_PCT_ARMOR, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_TRUE_DMG, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "true_damage", slot))
-                    pctAcc.trueDmg += pdc.get(KEY_PCT_TRUE_DMG, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_MAGIC_DMG, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "magic_damage", slot))
-                    pctAcc.magicDmg += pdc.get(KEY_PCT_MAGIC_DMG, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_MAGIC_DEF, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "magic_defense", slot))
-                    pctAcc.magicDef += pdc.get(KEY_PCT_MAGIC_DEF, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_PVE, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "pve_damage", slot))
-                    pctAcc.pveBonus += pdc.get(KEY_PCT_PVE, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_PVP, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "pvp_damage", slot))
-                    pctAcc.pvpBonus += pdc.get(KEY_PCT_PVP, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_ALL_DMG, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "all_damage", slot))
-                    pctAcc.allDamage += pdc.get(KEY_PCT_ALL_DMG, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_BOW_DMG, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "bow_damage", slot))
-                    pctAcc.bowDamage += pdc.get(KEY_PCT_BOW_DMG, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_DEATH_DMG, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "death_damage", slot))
-                    pctAcc.deathDamage += pdc.get(KEY_PCT_DEATH_DMG, PersistentDataType.DOUBLE);
-                if (pdc.has(KEY_PCT_EFFECT_RES, PersistentDataType.DOUBLE) && isAllowedPercent(item, slotConfig, "effect_resistance", slot))
-                    pctAcc.effectResistance += pdc.get(KEY_PCT_EFFECT_RES, PersistentDataType.DOUBLE);
-            }
-            if (isAllowed(item, slotConfig, "accuracy", slot)) {
-                stats.totalAccuracy += Accuracy.get(item);
-            }
-            if (isAllowed(item, slotConfig, "exp_bonus", slot)) {
-                stats.totalExpBonus += ExpBonus.get(item);
-            }
-            if (isAllowed(item, slotConfig, "movement_speed", slot)) {
-                stats.totalMovementSpeed += MovementSpeed.get(item);
-            }
-            if (isAllowed(item, slotConfig, "damage", slot))          stats.totalBonusDmg     += Damage.getDamage(item);
-            if (isAllowed(item, slotConfig, "critical_damage_reduction", slot))  stats.totalCritDamageReduction += CritDamageReduction.get(item);
-            if (isAllowed(item, slotConfig, "damage_reduction", slot))   stats.totalDamageReduction += DamageReduction.get(item);
-            if (isAllowed(item, slotConfig, "deep_wound", slot))   stats.totalDeepWound += DeepWound.get(item);
-            if (isAllowed(item, slotConfig, "pve_damage", slot))      stats.totalPveBonus     += PveDamage.get(item);
-            if (isAllowed(item, slotConfig, "pvp_damage", slot))      stats.totalPvpBonus     += PvpDamage.get(item);
-            if (isAllowed(item, slotConfig, "all_damage", slot))      stats.totalAllDamage    += AllDamage.get(item);
-            if (isAllowed(item, slotConfig, "all_defense", slot))     stats.totalAllDefense   += AllDefense.get(item);
-            if (isAllowed(item, slotConfig, "bow_damage", slot))      stats.totalBowDamage    += BowDamage.get(item);
-            if (isAllowed(item, slotConfig, "critical_chance", slot)) stats.totalCritChance   += CriticalChance.get(item);
-            if (isAllowed(item, slotConfig, "critical_damage", slot)) stats.totalCritDamage   += CriticalDamage.get(item);
-            if (isAllowed(item, slotConfig, "lifesteal", slot))       stats.totalLifesteal    += Lifesteal.get(item);
-            if (isAllowed(item, slotConfig, "true_damage", slot))     stats.totalTrueDamage   += TrueDamage.get(item);
-            if (isAllowed(item, slotConfig, "penetration", slot))     stats.totalPenetration  += Penetration.get(item);
-            if (isAllowed(item, slotConfig, "armor_pen", slot))       stats.totalArmorPen     += ArmorPen.get(item);
-            if (isAllowed(item, slotConfig, "armor", slot))           stats.totalArmor        += Armor.getArmor(item);
-            if (isAllowed(item, slotConfig, "pve_defense", slot))     stats.totalPveDef       += PveDefense.get(item);
-            if (isAllowed(item, slotConfig, "pvp_defense", slot))     stats.totalPvpDef       += PvpDefense.get(item);
-            if (isAllowed(item, slotConfig, "dodge_rate", slot))      stats.totalDodge        += DodgeRate.get(item);
-            if (isAllowed(item, slotConfig, "block_rate", slot))      stats.totalBlock        += BlockRate.get(item);
-            if (isAllowed(item, slotConfig, "thorns", slot))          stats.totalThorns       += Thorns.get(item);
-            if (isAllowed(item, slotConfig, "knockback_resistance", slot)) stats.totalKnockbackResist += KnockbackResistance.get(item);
-            if (isAllowed(item, slotConfig, "death_damage", slot))    stats.totalDeathDamage  += DeathDamage.get(item);
-            if (isAllowed(item, slotConfig, "magic_damage", slot))    stats.totalMagicDamage  += MagicDamage.get(item);
-            if (isAllowed(item, slotConfig, "magic_defense", slot))   stats.totalMagicDefense += MagicDefense.get(item);
-            if (isAllowed(item, slotConfig, "effect_resistance", slot)) stats.totalEffectResistance += EffectResistance.get(item);
-            if (isAllowed(item, slotConfig, "cooldown_reduction", slot)) stats.totalCooldownReduction += CooldownReduction.get(item);
-            Map<String, Integer> itemElements = ElementCore.getAllElements(item);
-            for (Map.Entry<String, Integer> entry : itemElements.entrySet()) {
-                String eId = entry.getKey().toUpperCase();
-                if (eConfig.contains(eId)) {
-                    double base = eConfig.getDouble(eId + ".base-damage", 0.0);
-                    double per  = eConfig.getDouble(eId + ".damage-per", 0.0);
-                    double totalDmg = base + (entry.getValue() * per);
-                    stats.weaponElementDamage.merge(eId, totalDmg, Double::sum);
-                    stats.weaponElementLevels.merge(eId, entry.getValue(), Integer::sum);
+            itemDefs.forEach((elem, lv) -> stats.elementDefenses.merge(elem, lv, Integer::sum));
+            if (mmoCore && !MMOCORE.canUse(player, item)) continue;
+
+            accumulatePercents(pdc, pctAcc, slotConfig, slot);
+
+            if (ok(pdc, slotConfig, "accuracy", slot))       stats.totalAccuracy += Accuracy.get(item);
+            if (ok(pdc, slotConfig, "exp_bonus", slot))      stats.totalExpBonus += ExpBonus.get(item);
+            if (ok(pdc, slotConfig, "movement_speed", slot)) stats.totalMovementSpeed += MovementSpeed.get(item);
+            if (ok(pdc, slotConfig, "damage", slot))         stats.totalBonusDmg += Damage.getDamage(item);
+            if (ok(pdc, slotConfig, "critical_damage_reduction", slot)) stats.totalCritDamageReduction += CritDamageReduction.get(item);
+            if (ok(pdc, slotConfig, "damage_reduction", slot)) stats.totalDamageReduction += DamageReduction.get(item);
+            if (ok(pdc, slotConfig, "deep_wound", slot))     stats.totalDeepWound += DeepWound.get(item);
+            if (ok(pdc, slotConfig, "pve_damage", slot))     stats.totalPveBonus += PveDamage.get(item);
+            if (ok(pdc, slotConfig, "pvp_damage", slot))     stats.totalPvpBonus += PvpDamage.get(item);
+            if (ok(pdc, slotConfig, "all_damage", slot))     stats.totalAllDamage += AllDamage.get(item);
+            if (ok(pdc, slotConfig, "all_defense", slot))    stats.totalAllDefense += AllDefense.get(item);
+            if (ok(pdc, slotConfig, "bow_damage", slot))     stats.totalBowDamage += BowDamage.get(item);
+            if (ok(pdc, slotConfig, "critical_chance", slot)) stats.totalCritChance += CriticalChance.get(item);
+            if (ok(pdc, slotConfig, "critical_damage", slot)) stats.totalCritDamage += CriticalDamage.get(item);
+            if (ok(pdc, slotConfig, "lifesteal", slot))      stats.totalLifesteal += Lifesteal.get(item);
+            if (ok(pdc, slotConfig, "true_damage", slot))    stats.totalTrueDamage += TrueDamage.get(item);
+            if (ok(pdc, slotConfig, "penetration", slot))    stats.totalPenetration += Penetration.get(item);
+            if (ok(pdc, slotConfig, "armor_pen", slot))      stats.totalArmorPen += ArmorPen.get(item);
+            if (ok(pdc, slotConfig, "armor", slot))          stats.totalArmor += Armor.getArmor(item);
+            if (ok(pdc, slotConfig, "pve_defense", slot))    stats.totalPveDef += PveDefense.get(item);
+            if (ok(pdc, slotConfig, "pvp_defense", slot))    stats.totalPvpDef += PvpDefense.get(item);
+            if (ok(pdc, slotConfig, "dodge_rate", slot))     stats.totalDodge += DodgeRate.get(item);
+            if (ok(pdc, slotConfig, "block_rate", slot))     stats.totalBlock += BlockRate.get(item);
+            if (ok(pdc, slotConfig, "thorns", slot))         stats.totalThorns += Thorns.get(item);
+            if (ok(pdc, slotConfig, "knockback_resistance", slot)) stats.totalKnockbackResist += KnockbackResistance.get(item);
+            if (ok(pdc, slotConfig, "death_damage", slot))   stats.totalDeathDamage += DeathDamage.get(item);
+            if (ok(pdc, slotConfig, "magic_damage", slot))   stats.totalMagicDamage += MagicDamage.get(item);
+            if (ok(pdc, slotConfig, "magic_defense", slot))  stats.totalMagicDefense += MagicDefense.get(item);
+            if (ok(pdc, slotConfig, "effect_resistance", slot)) stats.totalEffectResistance += EffectResistance.get(item);
+            if (ok(pdc, slotConfig, "cooldown_reduction", slot)) stats.totalCooldownReduction += CooldownReduction.get(item);
+
+            addElements(stats, ElementCore.getAllElements(item), eConfig);
+
+            for (String gemId : GemLogic.getGemsOnItem(item)) {
+                ItemStatHelper.GemData gem = ItemStatHelper.gem(gemConfig, gemId);
+                for (ItemStatHelper.StatLine line : gem.stats) {
+                    if (ok(pdc, slotConfig, line.type(), slot)) updateStat(stats, line.type(), line.value());
                 }
-            }
-            List<String> gemIds = GemLogic.getGemsOnItem(item);
-            for (String gemId : gemIds) {
-                if (gemConfig.contains(gemId + ".apply.stats")) {
-                    for (String line : gemConfig.getStringList(gemId + ".apply.stats")) {
-                        String[] parts = line.split(":", 2);
-                        if (parts.length < 2) continue;
-                        try {
-                            String type = parts[0].trim().toLowerCase();
-                            double value = Double.parseDouble(parts[1].trim());
-                            if (isAllowed(item, slotConfig, type, slot)) {
-                                updateStat(stats, type, value);
-                            }
-                        } catch (Exception ignored) {}
-                    }
+                for (ItemStatHelper.ElemLine el : gem.elements) {
+                    stats.weaponElementDamage.merge(el.id(), el.value(), Double::sum);
                 }
-                if (gemConfig.contains(gemId + ".apply.element")) {
-                    for (String line : gemConfig.getStringList(gemId + ".apply.element")) {
-                        String[] parts = line.split(":", 2);
-                        if (parts.length == 2) {
-                            try {
-                                String eId = parts[0].trim().toUpperCase();
-                                double val = Double.parseDouble(parts[1].trim());
-                                stats.weaponElementDamage.merge(eId, val, Double::sum);
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                }
-                if (gemConfig.contains(gemId + ".apply.ability")) {
-                    for (String line : gemConfig.getStringList(gemId + ".apply.ability")) {
-                        processAbilityLine(line, stats.bestAbilities);
-                    }
+                for (ItemStatHelper.AbilityLine ab : gem.abilities) {
+                    putBestAbility(stats.bestAbilities, ab.name(), ab.level(), ab.chance());
                 }
             }
             for (String data : AbilityData.getAbilityList(item)) {
                 processAbilityLineLegacy(data, stats.bestAbilities);
             }
         }
-        Map<Integer, ItemStack> jewelryItems = JewelryManager.getCachedJewelry(player.getUniqueId());
+
+        Map<Integer, ItemStack> jewelryItems = JewelryManager.getCachedJewelry(uuid);
         for (ItemStack jItem : jewelryItems.values()) {
             applyJewelryStats(player, stats, pctAcc, jItem, eConfig, gemConfig);
         }
-        FileConfiguration mainConfig = Main.getInstance().getConfig();
+        FileConfiguration mainConfig = main.getConfig();
         if (mainConfig.getBoolean("jewelry.enable-player-inventory", false)) {
-            ConfigurationSection pSlots = mainConfig.getConfigurationSection("jewelry.player-slots");
-            if (pSlots != null) {
-                for (String key : pSlots.getKeys(false)) {
-                    try {
-                        int slotIdx = Integer.parseInt(key);
-                        ItemStack item = player.getInventory().getItem(slotIdx);
-                        if (item != null && item.getType() != Material.AIR && !isPlaceholder(item)) {
-                            applyJewelryStats(player, stats, pctAcc, item, eConfig, gemConfig);
-                        }
-                    } catch (Exception ignored) {}
-                }
+            for (int slotIdx : ItemStatHelper.jewelryLayout(mainConfig).playerSlots) {
+                try {
+                    ItemStack item = player.getInventory().getItem(slotIdx);
+                    if (item != null && item.getType() != Material.AIR && item.hasItemMeta() && !isPlaceholder(item)) {
+                        applyJewelryStats(player, stats, pctAcc, item, eConfig, gemConfig);
+                    }
+                } catch (Exception ignored) {}
             }
         }
+
         double finalKB = Math.max(0.0, Math.min(1.0, stats.totalKnockbackResist));
         if (KNOCKBACK_RESISTANCE_ATTRIBUTE != null) {
             org.bukkit.attribute.AttributeInstance kbAttr = player.getAttribute(KNOCKBACK_RESISTANCE_ATTRIBUTE);
-            if (kbAttr != null) {
+            // chỉ set khi đổi: setBaseValue luôn đánh dấu attribute dirty + gửi packet
+            if (kbAttr != null && kbAttr.getBaseValue() != finalKB) {
                 kbAttr.setBaseValue(finalKB);
             }
         }
-        applyAccumulatedPercents(stats, pctAcc.bonusDmg, pctAcc.armor, pctAcc.trueDmg, pctAcc.critDmgReduction,
-                pctAcc.magicDmg, pctAcc.magicDef, pctAcc.pveBonus, pctAcc.pvpBonus, pctAcc.allDamage,
-                pctAcc.bowDamage, pctAcc.deathDamage, pctAcc.effectResistance);
-        org.ThienNguyen.API.StatBoostAPI.apply(player.getUniqueId(), stats);
-        StatsListener.getInstance().updatePlayerStats(player);
-        PlayerCombatCache.updateCache(player.getUniqueId(), stats);
+        applyAccumulatedPercents(stats, pctAcc);
+        org.ThienNguyen.API.StatBoostAPI.apply(uuid, stats);
+        StatsListener.getInstance().updatePlayerStats(player, currentComboId.isEmpty() ? null : currentComboId);
+        PlayerCombatCache.updateCache(uuid, stats);
     }
+
+    private static void addElements(PlayerCombatCache.CombatStats stats, Map<String, Integer> elements, FileConfiguration eConfig) {
+        if (elements == null || elements.isEmpty()) return;
+        for (Map.Entry<String, Integer> entry : elements.entrySet()) {
+            String eId = entry.getKey().toUpperCase();
+            if (eConfig.contains(eId)) {
+                double base = eConfig.getDouble(eId + ".base-damage", 0.0);
+                double per  = eConfig.getDouble(eId + ".damage-per", 0.0);
+                stats.weaponElementDamage.merge(eId, base + (entry.getValue() * per), Double::sum);
+                stats.weaponElementLevels.merge(eId, entry.getValue(), Integer::sum);
+            }
+        }
+    }
+
     private static void updateStat(PlayerCombatCache.CombatStats stats, String type, double val) {
         if (val == 0) return;
         switch (type.toLowerCase()) {
@@ -449,58 +392,19 @@ public class CacheListener implements Listener {
             case "cooldown_reduction" -> stats.totalCooldownReduction += val;
         }
     }
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(org.bukkit.event.player.PlayerRespawnEvent e) {
-        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-            if (e.getPlayer().isOnline()) {
-                refreshCache(e.getPlayer());
-            }
-        }, 5L);
+
+    private static void putBestAbility(Map<String, double[]> best, String name, double lv, double ch) {
+        double[] cur = best.get(name);
+        if (cur == null || lv > cur[0]) best.put(name, new double[]{lv, ch});
     }
-    private static void processAbilityLine(String line, Map<String, double[]> best) {
-        String[] p = line.split(":");
-        if (p.length < 2) return;
-        String name = p[0].trim().toUpperCase();
-        String[] vals = p[1].trim().split("\\s+");
-        if (vals.length < 2) return;
-        try {
-            double lv = Double.parseDouble(vals[0]);
-            double ch = Double.parseDouble(vals[1]);
-            if (!best.containsKey(name) || lv > best.get(name)[0]) {
-                best.put(name, new double[]{lv, ch});
-            }
-        } catch (Exception ignored) {}
-    }
-    private static void applyJewelryStats(Player player, PlayerCombatCache.CombatStats stats, PercentAccumulator pctAcc, ItemStack jItem, FileConfiguration eConfig, FileConfiguration gemConfig) {
-        if (jItem == null || jItem.getType() == Material.AIR) return;
-        if (!isOwner(player, jItem)) return;
-        if (jItem.hasItemMeta()) {
-            var pdc = jItem.getItemMeta().getPersistentDataContainer();
-            if (pdc.has(KEY_PCT_DAMAGE, PersistentDataType.DOUBLE))
-                pctAcc.bonusDmg += pdc.get(KEY_PCT_DAMAGE, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_CRIT_DMG_RED, PersistentDataType.DOUBLE))
-                pctAcc.critDmgReduction += pdc.get(KEY_PCT_CRIT_DMG_RED, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_ARMOR, PersistentDataType.DOUBLE))
-                pctAcc.armor += pdc.get(KEY_PCT_ARMOR, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_TRUE_DMG, PersistentDataType.DOUBLE))
-                pctAcc.trueDmg += pdc.get(KEY_PCT_TRUE_DMG, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_MAGIC_DMG, PersistentDataType.DOUBLE))
-                pctAcc.magicDmg += pdc.get(KEY_PCT_MAGIC_DMG, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_MAGIC_DEF, PersistentDataType.DOUBLE))
-                pctAcc.magicDef += pdc.get(KEY_PCT_MAGIC_DEF, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_PVE, PersistentDataType.DOUBLE))
-                pctAcc.pveBonus += pdc.get(KEY_PCT_PVE, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_PVP, PersistentDataType.DOUBLE))
-                pctAcc.pvpBonus += pdc.get(KEY_PCT_PVP, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_ALL_DMG, PersistentDataType.DOUBLE))
-                pctAcc.allDamage += pdc.get(KEY_PCT_ALL_DMG, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_BOW_DMG, PersistentDataType.DOUBLE))
-                pctAcc.bowDamage += pdc.get(KEY_PCT_BOW_DMG, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_DEATH_DMG, PersistentDataType.DOUBLE))
-                pctAcc.deathDamage += pdc.get(KEY_PCT_DEATH_DMG, PersistentDataType.DOUBLE);
-            if (pdc.has(KEY_PCT_EFFECT_RES, PersistentDataType.DOUBLE))
-                pctAcc.effectResistance += pdc.get(KEY_PCT_EFFECT_RES, PersistentDataType.DOUBLE);
-        }
+
+    private static void applyJewelryStats(Player player, PlayerCombatCache.CombatStats stats, PercentAccumulator pctAcc,
+                                          ItemStack jItem, FileConfiguration eConfig, FileConfiguration gemConfig) {
+        if (jItem == null || jItem.getType() == Material.AIR || !jItem.hasItemMeta()) return;
+        PersistentDataContainer pdc = jItem.getItemMeta().getPersistentDataContainer();
+        if (!ItemStatHelper.isOwner(player, pdc)) return;
+        accumulatePercents(pdc, pctAcc, null, null);
+
         stats.totalAccuracy += Accuracy.get(jItem);
         stats.totalExpBonus += ExpBonus.get(jItem);
         stats.totalCritDamageReduction += CritDamageReduction.get(jItem);
@@ -508,7 +412,7 @@ public class CacheListener implements Listener {
         stats.totalDamageReduction += DamageReduction.get(jItem);
         stats.totalPveBonus     += PveDamage.get(jItem);
         stats.totalPvpBonus     += PvpDamage.get(jItem);
-        stats.totalDeepWound += DeepWound.get(jItem);
+        stats.totalDeepWound    += DeepWound.get(jItem);
         stats.totalCritChance   += CriticalChance.get(jItem);
         stats.totalCritDamage   += CriticalDamage.get(jItem);
         stats.totalLifesteal    += Lifesteal.get(jItem);
@@ -529,84 +433,26 @@ public class CacheListener implements Listener {
         stats.totalMagicDefense += MagicDefense.get(jItem);
         stats.totalEffectResistance += EffectResistance.get(jItem);
         stats.totalCooldownReduction += CooldownReduction.get(jItem);
-        Map<String, Integer> jElements = ElementCore.getAllElements(jItem);
-        for (Map.Entry<String, Integer> entry : jElements.entrySet()) {
-            String eId = entry.getKey().toUpperCase();
-            if (eConfig.contains(eId)) {
-                double base = eConfig.getDouble(eId + ".base-damage", 0.0);
-                double per  = eConfig.getDouble(eId + ".damage-per", 0.0);
-                double totalDmg = base + (entry.getValue() * per);
-                stats.weaponElementDamage.merge(eId, totalDmg, Double::sum);
-                stats.weaponElementLevels.merge(eId, entry.getValue(), Integer::sum);
-            }
-        }
-        List<String> jGemIds = GemLogic.getGemsOnItem(jItem);
-        for (String gemId : jGemIds) {
-            if (gemConfig.contains(gemId + ".apply.stats")) {
-                for (String line : gemConfig.getStringList(gemId + ".apply.stats")) {
-                    String[] parts = line.split(":", 2);
-                    if (parts.length < 2) continue;
-                    try {
-                        updateStat(stats, parts[0].trim().toLowerCase(), Double.parseDouble(parts[1].trim()));
-                    } catch (Exception ignored) {}
-                }
-            }
-            if (gemConfig.contains(gemId + ".apply.ability")) {
-                for (String line : gemConfig.getStringList(gemId + ".apply.ability")) {
-                    processAbilityLine(line, stats.bestAbilities);
-                }
-            }
+
+        addElements(stats, ElementCore.getAllElements(jItem), eConfig);
+
+        for (String gemId : GemLogic.getGemsOnItem(jItem)) {
+            ItemStatHelper.GemData gem = ItemStatHelper.gem(gemConfig, gemId);
+            for (ItemStatHelper.StatLine line : gem.stats) updateStat(stats, line.type(), line.value());
+            for (ItemStatHelper.AbilityLine ab : gem.abilities) putBestAbility(stats.bestAbilities, ab.name(), ab.level(), ab.chance());
         }
     }
+
     private static boolean isPlaceholder(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
-        return item.getItemMeta().getPersistentDataContainer()
-                .has(KEY_IS_PLACEHOLDER, PersistentDataType.BOOLEAN);
+        return item.getItemMeta().getPersistentDataContainer().has(KEY_IS_PLACEHOLDER, PersistentDataType.BOOLEAN);
     }
     private static void processAbilityLineLegacy(String data, Map<String, double[]> best) {
         String[] parts = data.split(":");
         if (parts.length < 3) return;
         try {
-            String name = parts[0].toUpperCase();
-            double lv = Double.parseDouble(parts[1]);
-            double ch = Double.parseDouble(parts[2]);
-            if (!best.containsKey(name) || lv > best.get(name)[0]) {
-                best.put(name, new double[]{lv, ch});
-            }
+            putBestAbility(best, parts[0].toUpperCase(), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]));
         } catch (Exception ignored) {}
-    }
-    private static String normalizeSlot(EquipmentSlot slot) {
-        if (slot == null) return "";
-        String name = slot.name().toLowerCase().replace("_", "");
-        if (name.equals("hand")) return "mainhand";
-        if (name.equals("offhand")) return "offhand";
-        return name;
-    }
-    private static boolean isAllowed(ItemStack item, FileConfiguration config, String stat, EquipmentSlot currentSlot) {
-        if (item == null || !item.hasItemMeta()) return true;
-        NamespacedKey key = new NamespacedKey(Main.getInstance(), "slot_" + stat.toLowerCase());
-        String requiredSlot = item.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
-        if (requiredSlot != null) {
-            if (requiredSlot.equalsIgnoreCase("any")) return true;
-            String current = normalizeSlot(currentSlot);
-            String[] allowedSlots = requiredSlot.split(",");
-            for (String s : allowedSlots) {
-                if (s.trim().equalsIgnoreCase(current)) return true;
-            }
-            return false;
-        }
-        if (config == null) return true;
-        List<String> list = config.getStringList("stats-slots." + stat);
-        if (list == null || list.isEmpty()) return true;
-        String currentNormalized = normalizeSlot(currentSlot);
-        String originalName = currentSlot.name();
-        for (String allowed : list) {
-            if (allowed.equalsIgnoreCase(currentNormalized) ||
-                    allowed.equalsIgnoreCase(originalName)) {
-                return true;
-            }
-        }
-        return false;
     }
     private static boolean isMMOCoreAvailable() {
         return Bukkit.getPluginManager().isPluginEnabled("MMOCore");

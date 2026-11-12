@@ -10,7 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 public class GeminiClient {
-    private final String HARDCODED_API_KEY = "AIzaSyAOwahO33Ue7n1Ao1gCAJdCSY_CQ1S_j_Y";
+    private final String HARDCODED_API_KEY = "API_HERE";
     private String getApiKey() {
         FileConfiguration aiCfg = Main.getInstance().getAIConfig();
         if (aiCfg != null) {
@@ -20,7 +20,7 @@ public class GeminiClient {
                 return userKey;
             }
         }
-        Bukkit.getLogger().info("[WindyAI] Không tìm thấy API Key từ config → Sử dụng hard-coded key");
+        Bukkit.getLogger().info("[Myitem] Không tìm thấy API Key từ config → Sử dụng hard-coded key");
         return HARDCODED_API_KEY;
     }
     private String getGeminiUrl() {

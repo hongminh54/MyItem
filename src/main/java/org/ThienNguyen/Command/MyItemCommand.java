@@ -1090,7 +1090,12 @@ public class MyItemCommand implements CommandExecutor {
                 if (!(sender instanceof Player player)) return true;
                 if (!checkAdmin(player)) return true;
                 if (args.length < 2) {
+                    new org.ThienNguyen.Listener.Passive.Editor.Gui.PassiveListMenu(player).open();
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("help")) {
                     player.sendMessage(PFX + "Usage:");
+                    player.sendMessage("  §f/mi passive §7— Open the passive editor GUI");
                     player.sendMessage("  §f/mi passive bind <id> §7— Bind a passive to held item");
                     player.sendMessage("  §f/mi passive unbind <id> §7— Unbind a passive from held item");
                     return true;
@@ -1328,14 +1333,14 @@ public class MyItemCommand implements CommandExecutor {
         helpLines.add(rpgPrefix + "§7- Mở kho đồ trang sức cá nhân");
         helpLines.add(rpgPrefix + "type <id> §7- Gán loại trang sức cầm tay");
         helpLines.add(rpgPrefix + "untype §7- Xóa loại trang sức khỏi item");
-        helpLines.add(miPrefix + "connect <mã> §7- lấy item đã edit từ web §e(premium)");
-        helpLines.add(miPrefix + "editor <mã> §7- lấy link edit item §e(premium)");
+        helpLines.add(miPrefix + "connect <mã> §7- lấy item đã edit từ web §e(Ngưng hoạt động)");
+        helpLines.add(miPrefix + "editor <mã> §7- lấy link edit item §e(Ngưng hoạt động)");
         helpLines.add(miPrefix + "sync addcode §7- thêm mã code cho item cầm tay và biến nó thành dạng có thể sửa mọi noi ");
         helpLines.add(miPrefix + "sync clear §7- xoá mã station item cầm tay  ");
         helpLines.add(miPrefix + "sync update §7- cập nhật chỉ số , lore các item có cùng mã station khác ");
         helpLines.add(miPrefix + "sync check §7- kiểm tra mã station và version item ");
-        helpLines.add(miPrefix + "update §7- tải các bản mới của myitem mà không cần lên web tìm hay đọc các cập nhật ngay trong game ");
-        helpLines.add(miPrefix + "version §7- check phiên bản hiện tại ");
+        helpLines.add(miPrefix + "update §7- tải các bản mới của myitem mà không cần lên web tìm hay đọc các cập nhật ngay trong game §e(Ngưng hoạt động)");
+        helpLines.add(miPrefix + "version §7- check phiên bản hiện tại §e(Ngưng hoạt động)");
         helpLines.add(miPrefix + "tiers §7- gán phẩm chất cho item");
         helpLines.add(miPrefix + "particle §7- gắn các hạt particle cho item");
         helpLines.add(miPrefix + "unparticle §7- gỡ particle");
@@ -1344,7 +1349,7 @@ public class MyItemCommand implements CommandExecutor {
         helpLines.add(miPrefix + "ic §7- Thêm item đi theo combo chỉnh trong ItemCombo.yml");
         helpLines.add(miPrefix + "evo <entity> <amount> <evoDatabase> §7- Tiến hoá cho item");
         helpLines.add(miPrefix + "getai <id>  §7- Nhận Item từ AI trong Item.yml ");
-        helpLines.add(miPrefix + "ai <profile> §7- Tạo item từ AI ");
+        helpLines.add(miPrefix + "ai <profile> §7- Tạo item từ AI §e(Ngưng hoạt động)");
         helpLines.add(miPrefix + "expire <time> §7- Thiết lập hạn sử dụng cho vật phẩm");
         helpLines.add(miPrefix + "storage <create/save/load/browse> §7- Quản lí item (ManagerItem)");
         helpLines.add(miPrefix + "checkitem §7- Kiểm tra data vật phẩm");

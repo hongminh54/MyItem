@@ -1,87 +1,74 @@
 package org.ThienNguyen.Listener;
 import org.bukkit.entity.Player;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ObjDoubleConsumer;
 public class PlayerCombatCache {
     private static final Map<UUID, CombatStats> cache = new ConcurrentHashMap<>();
-    private static final Map<String, String> STAT_NAME_TO_FIELD = new HashMap<>();
+
+    /** getter/setter trực tiếp cho từng stat — thay cho java.lang.reflect.Field (chậm + setAccessible mỗi lần). */
+    private record Accessor(ToDoubleFunction<CombatStats> get, ObjDoubleConsumer<CombatStats> set) {}
+    private static final Map<String, Accessor> ACCESSORS = new HashMap<>();
+    private static void reg(String key, ToDoubleFunction<CombatStats> g, ObjDoubleConsumer<CombatStats> s) {
+        ACCESSORS.put(key, new Accessor(g, s));
+    }
     static {
-        STAT_NAME_TO_FIELD.put("damage", "totalBonusDmg");
-        STAT_NAME_TO_FIELD.put("pve_damage", "totalPveBonus");
-        STAT_NAME_TO_FIELD.put("pvp_damage", "totalPvpBonus");
-        STAT_NAME_TO_FIELD.put("critical_chance", "totalCritChance");
-        STAT_NAME_TO_FIELD.put("critical_damage", "totalCritDamage");
-        STAT_NAME_TO_FIELD.put("lifesteal", "totalLifesteal");
-        STAT_NAME_TO_FIELD.put("dodge_rate", "totalDodge");
-        STAT_NAME_TO_FIELD.put("block_rate", "totalBlock");
-        STAT_NAME_TO_FIELD.put("penetration", "totalPenetration");
-        STAT_NAME_TO_FIELD.put("true_damage", "totalTrueDamage");
-        STAT_NAME_TO_FIELD.put("thorns", "totalThorns");
-        STAT_NAME_TO_FIELD.put("max_mana", "totalMaxMana");
-        STAT_NAME_TO_FIELD.put("mana_regen", "totalManaRegen");
-        STAT_NAME_TO_FIELD.put("exp_bonus", "totalExpBonus");
-        STAT_NAME_TO_FIELD.put("movement_speed", "totalMovementSpeed");
-        STAT_NAME_TO_FIELD.put("armor_pen", "totalArmorPen");
-        STAT_NAME_TO_FIELD.put("health_regen", "totalHealthRegen");
-        STAT_NAME_TO_FIELD.put("all_damage", "totalAllDamage");
-        STAT_NAME_TO_FIELD.put("all_defense", "totalAllDefense");
-        STAT_NAME_TO_FIELD.put("bow_damage", "totalBowDamage");
-        STAT_NAME_TO_FIELD.put("knockback_resistance", "totalKnockbackResist");
-        STAT_NAME_TO_FIELD.put("death_damage", "totalDeathDamage");
-        STAT_NAME_TO_FIELD.put("accuracy", "totalAccuracy");
-        STAT_NAME_TO_FIELD.put("crit_damage_reduction", "totalCritDamageReduction");
-        STAT_NAME_TO_FIELD.put("magic_damage", "totalMagicDamage");
-        STAT_NAME_TO_FIELD.put("magic_defense", "totalMagicDefense");
-        STAT_NAME_TO_FIELD.put("armor", "totalArmor");
-        STAT_NAME_TO_FIELD.put("pve_defense", "totalPveDef");
-        STAT_NAME_TO_FIELD.put("pvp_defense", "totalPvpDef");
-        STAT_NAME_TO_FIELD.put("deep_wound", "totalDeepWound");
-        STAT_NAME_TO_FIELD.put("damage_reduction", "totalDamageReduction");
-        STAT_NAME_TO_FIELD.put("effect_resistance", "totalEffectResistance");
-        STAT_NAME_TO_FIELD.put("health", "totalHealth");
-        STAT_NAME_TO_FIELD.put("attack_speed", "totalAttackSpeed");
-        STAT_NAME_TO_FIELD.put("cooldown_reduction", "totalCooldownReduction");
+        reg("damage", s -> s.totalBonusDmg, (s, v) -> s.totalBonusDmg = v);
+        reg("pve_damage", s -> s.totalPveBonus, (s, v) -> s.totalPveBonus = v);
+        reg("pvp_damage", s -> s.totalPvpBonus, (s, v) -> s.totalPvpBonus = v);
+        reg("critical_chance", s -> s.totalCritChance, (s, v) -> s.totalCritChance = v);
+        reg("critical_damage", s -> s.totalCritDamage, (s, v) -> s.totalCritDamage = v);
+        reg("lifesteal", s -> s.totalLifesteal, (s, v) -> s.totalLifesteal = v);
+        reg("dodge_rate", s -> s.totalDodge, (s, v) -> s.totalDodge = v);
+        reg("block_rate", s -> s.totalBlock, (s, v) -> s.totalBlock = v);
+        reg("penetration", s -> s.totalPenetration, (s, v) -> s.totalPenetration = v);
+        reg("true_damage", s -> s.totalTrueDamage, (s, v) -> s.totalTrueDamage = v);
+        reg("thorns", s -> s.totalThorns, (s, v) -> s.totalThorns = v);
+        reg("max_mana", s -> s.totalMaxMana, (s, v) -> s.totalMaxMana = v);
+        reg("mana_regen", s -> s.totalManaRegen, (s, v) -> s.totalManaRegen = v);
+        reg("exp_bonus", s -> s.totalExpBonus, (s, v) -> s.totalExpBonus = v);
+        reg("movement_speed", s -> s.totalMovementSpeed, (s, v) -> s.totalMovementSpeed = v);
+        reg("armor_pen", s -> s.totalArmorPen, (s, v) -> s.totalArmorPen = v);
+        reg("health_regen", s -> s.totalHealthRegen, (s, v) -> s.totalHealthRegen = v);
+        reg("all_damage", s -> s.totalAllDamage, (s, v) -> s.totalAllDamage = v);
+        reg("all_defense", s -> s.totalAllDefense, (s, v) -> s.totalAllDefense = v);
+        reg("bow_damage", s -> s.totalBowDamage, (s, v) -> s.totalBowDamage = v);
+        reg("knockback_resistance", s -> s.totalKnockbackResist, (s, v) -> s.totalKnockbackResist = v);
+        reg("death_damage", s -> s.totalDeathDamage, (s, v) -> s.totalDeathDamage = v);
+        reg("accuracy", s -> s.totalAccuracy, (s, v) -> s.totalAccuracy = v);
+        reg("crit_damage_reduction", s -> s.totalCritDamageReduction, (s, v) -> s.totalCritDamageReduction = v);
+        reg("magic_damage", s -> s.totalMagicDamage, (s, v) -> s.totalMagicDamage = v);
+        reg("magic_defense", s -> s.totalMagicDefense, (s, v) -> s.totalMagicDefense = v);
+        reg("armor", s -> s.totalArmor, (s, v) -> s.totalArmor = v);
+        reg("pve_defense", s -> s.totalPveDef, (s, v) -> s.totalPveDef = v);
+        reg("pvp_defense", s -> s.totalPvpDef, (s, v) -> s.totalPvpDef = v);
+        reg("deep_wound", s -> s.totalDeepWound, (s, v) -> s.totalDeepWound = v);
+        reg("damage_reduction", s -> s.totalDamageReduction, (s, v) -> s.totalDamageReduction = v);
+        reg("effect_resistance", s -> s.totalEffectResistance, (s, v) -> s.totalEffectResistance = v);
+        reg("health", s -> s.totalHealth, (s, v) -> s.totalHealth = v);
+        reg("attack_speed", s -> s.totalAttackSpeed, (s, v) -> s.totalAttackSpeed = v);
+        reg("cooldown_reduction", s -> s.totalCooldownReduction, (s, v) -> s.totalCooldownReduction = v);
     }
     public static boolean isKnownStat(String statKey) {
-        return STAT_NAME_TO_FIELD.containsKey(statKey);
+        return ACCESSORS.containsKey(statKey);
     }
     public static java.util.Set<String> getKnownStatKeys() {
-        return STAT_NAME_TO_FIELD.keySet();
-    }
-    private static final Map<String, Field> FIELD_CACHE = new ConcurrentHashMap<>();
-    private static Field resolveField(String javaFieldName) {
-        return FIELD_CACHE.computeIfAbsent(javaFieldName, name -> {
-            try {
-                Field f = CombatStats.class.getField(name);
-                f.setAccessible(true);
-                return f;
-            } catch (NoSuchFieldException e) {
-                return null;
-            }
-        });
+        return ACCESSORS.keySet();
     }
     public static boolean addToField(CombatStats stats, String statKey, double amount) {
-        String javaField = STAT_NAME_TO_FIELD.get(statKey);
-        if (javaField == null) return false;
-        Field f = resolveField(javaField);
-        if (f == null) return false;
-        try {
-            f.setDouble(stats, f.getDouble(stats) + amount);
-            return true;
-        } catch (IllegalAccessException e) { return false; }
+        Accessor a = ACCESSORS.get(statKey);
+        if (a == null) return false;
+        a.set().accept(stats, a.get().applyAsDouble(stats) + amount);
+        return true;
     }
     public static boolean multiplyField(CombatStats stats, String statKey, double percent) {
-        String javaField = STAT_NAME_TO_FIELD.get(statKey);
-        if (javaField == null) return false;
-        Field f = resolveField(javaField);
-        if (f == null) return false;
-        try {
-            f.setDouble(stats, f.getDouble(stats) * (1.0 + percent / 100.0));
-            return true;
-        } catch (IllegalAccessException e) { return false; }
+        Accessor a = ACCESSORS.get(statKey);
+        if (a == null) return false;
+        a.set().accept(stats, a.get().applyAsDouble(stats) * (1.0 + percent / 100.0));
+        return true;
     }
     public static double getEffective(UUID uuid, String statKey, double baseValue) {
         CombatStats stats = cache.get(uuid);
@@ -99,14 +86,8 @@ public class PlayerCombatCache {
     public static double getEffectiveByStatName(UUID uuid, String statKey) {
         CombatStats stats = cache.get(uuid);
         if (stats == null) return 0.0;
-        String javaField = STAT_NAME_TO_FIELD.get(statKey);
-        double base = 0.0;
-        if (javaField != null) {
-            Field f = resolveField(javaField);
-            if (f != null) {
-                try { base = f.getDouble(stats); } catch (IllegalAccessException ignored) {}
-            }
-        }
+        Accessor a = ACCESSORS.get(statKey);
+        double base = a != null ? a.get().applyAsDouble(stats) : 0.0;
         return getEffective(uuid, statKey, base);
     }
     public static class CombatStats {

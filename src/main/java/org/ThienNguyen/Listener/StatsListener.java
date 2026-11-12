@@ -150,6 +150,11 @@ public class StatsListener implements Listener {
     }
     public void updatePlayerStats(Player player) {
         if (player == null || !player.isOnline()) return;
+        updatePlayerStats(player, org.ThienNguyen.Listener.ItemCombo.ComboListener.getFullSetComboId(player));
+    }
+    /** comboId = full-set combo đã tính sẵn (null nếu không có); tránh tính lại getFullSetComboId. */
+    public void updatePlayerStats(Player player, String comboId) {
+        if (player == null || !player.isOnline()) return;
         double totalHealth = 0;
         double totalMaxMana = 0;
         double totalManaRegen = 0;
@@ -274,7 +279,6 @@ public class StatsListener implements Listener {
                 }
             } catch (Exception ignored) {}
         }
-        String comboId = org.ThienNguyen.Listener.ItemCombo.ComboListener.getFullSetComboId(player);
         if (comboId != null) {
             ConfigurationSection comboStats = Main.getInstance().getComboConfig().getConfigurationSection(comboId + ".stats");
             if (comboStats != null) {

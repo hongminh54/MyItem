@@ -221,6 +221,17 @@ public class Main extends JavaPlugin {
                 new org.ThienNguyen.Listener.Passive.Trigger.PassiveDeathListener(), this);
         getServer().getPluginManager().registerEvents(
                 new org.ThienNguyen.Listener.Passive.Trigger.PassiveCacheListener(), this);
+        // Passive GUI Editor: listener (click/ESC/chat) + lệnh /passiveeditor
+        org.ThienNguyen.Listener.Passive.Editor.Gui.EditorGuiListener.register(this);
+        org.bukkit.command.PluginCommand passiveEditorCmd = getCommand("passiveeditor");
+        if (passiveEditorCmd != null) {
+            org.ThienNguyen.Listener.Passive.Editor.PassiveEditorCommand pec =
+                    new org.ThienNguyen.Listener.Passive.Editor.PassiveEditorCommand();
+            passiveEditorCmd.setExecutor(pec);
+            passiveEditorCmd.setTabCompleter(pec);
+        } else {
+            getLogger().warning("Thiếu lệnh 'passiveeditor' trong plugin.yml!");
+        }
         getServer().getPluginManager().registerEvents(
                 new org.ThienNguyen.Listener.EffectResistanceListener(), this);
         getServer().getPluginManager().registerEvents(new org.ThienNguyen.Listener.AbilityBlockListener(), this);
@@ -421,7 +432,7 @@ public class Main extends JavaPlugin {
                         "\n§3■■      ■■  ■■■■■■■■";
         String description =
                 "\n§f> Tên plugin: §3§lMyitem" +
-                        "\n§f> Phiên bản: §e" + "4.1" +
+                        "\n§f> Phiên bản: §e" + "4.2" +
                         "\n§f> AI: §e" + "1.0" +
                         "\n§f> Tác giả: §dThiện Dev" +
                         "\n§f> Dành cho: §a1.14.x -> 1.21.x" +

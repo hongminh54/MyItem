@@ -1,7 +1,9 @@
 package org.ThienNguyen.Listener.Passive.Mechanics;
 import org.ThienNguyen.Listener.Passive.AbstractMechanic;
+import org.ThienNguyen.Listener.Passive.EffectLookup;
 import org.ThienNguyen.Listener.Passive.ExpressionResolver;
 import org.ThienNguyen.Listener.Passive.PassiveContext;
+import org.ThienNguyen.Main;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
@@ -15,7 +17,10 @@ public class EffectMechanic extends AbstractMechanic {
     public EffectMechanic(ConfigurationSection cfg) {
         super(cfg);
         String effectName = cfg.getString("effect", "").toUpperCase();
-        this.effectType = PotionEffectType.getByName(effectName);
+        this.effectType = EffectLookup.find(effectName);
+        if (this.effectType == null) {
+            Main.getInstance().getLogger().warning("[Passive] EFFECT: hiệu ứng không hợp lệ: '" + effectName + "'.");
+        }
         this.rawSeconds  = cfg.getString("seconds", "5");
         this.rawLevel    = cfg.getString("level",   "1");
         this.ambient     = cfg.getBoolean("ambient",    false);

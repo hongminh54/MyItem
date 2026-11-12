@@ -44,6 +44,28 @@ public class PassiveManager {
         }
         Main.getInstance().getLogger().info("[Passive] Đã load " + loaded + " passive(s).");
     }
+    /** Key PDC "passive_ids" (dùng chung với editor để gán passive vào vật phẩm). */
+    public static NamespacedKey pdcKey() { return PDC_KEY; }
+    /**
+     * Nạp lại ĐÚNG 1 passive từ file, không đụng tới passive khác -> state nội bộ của mechanic
+     * (HIT_COUNTER, STACK_COUNTER...) của các passive còn lại và cooldown được giữ nguyên.
+     * Mechanic của chính passive này được dựng mới (config đã đổi nên state cũ không còn ý nghĩa).
+     * @param oldId id trước khi lưu (null nếu passive mới); khác id mới (đổi tên) thì gỡ id cũ.
+     * @return false nếu file lỗi (thiếu id / trigger sai) -> registry KHÔNG bị đổi, caller nên dùng loadAll().
+     */
+    public boolean reloadOne(File file, String oldId) {
+        if (file == null || !file.isFile()) return false;
+        YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        PassiveDef def = PassiveDef.fromYaml(cfg, file.getName());
+        if (def == null) return false;
+        if (oldId != null && !oldId.equals(def.getId())) registry.remove(oldId);
+        registry.put(def.getId(), def);
+        return true;
+    }
+    /** Gỡ 1 passive khỏi registry (khi xóa file). */
+    public void unloadOne(String id) {
+        if (id != null) registry.remove(id);
+    }
     public void trigger(PassiveTrigger triggerType,
                         Player actor,
                         LivingEntity victim,

@@ -1,4 +1,5 @@
 package org.ThienNguyen.Listener.Passive.Mechanics;
+import org.ThienNguyen.Listener.Passive.EffectLookup;
 import org.ThienNguyen.Listener.Passive.ExpressionResolver;
 import org.ThienNguyen.Listener.Passive.PassiveContext;
 import org.ThienNguyen.Listener.Passive.PassiveMechanic;
@@ -188,7 +189,7 @@ public class PotionZoneMechanic implements PassiveMechanic {
                 continue;
             }
             String typeStr = section.getString("type", "");
-            PotionEffectType type = PotionEffectType.getByName(typeStr.trim().toUpperCase());
+            PotionEffectType type = EffectLookup.find(typeStr);
             if (type == null) {
                 Main.getInstance().getLogger()
                         .warning("[Passive] POTION_ZONE: hiệu ứng không hợp lệ: '" + typeStr + "', bỏ qua.");

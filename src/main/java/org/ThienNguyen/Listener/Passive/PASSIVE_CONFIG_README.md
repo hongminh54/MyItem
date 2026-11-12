@@ -1,15 +1,22 @@
 # Passive Ability YAML Config — Reference for AI Config Generation
+
 This document describes the YAML schema for a Minecraft plugin's "Passive Ability" system, which attaches special effects to items via `.yml` files (no coding required). Use this reference to generate valid passive config files — **not** for plugin development/source work.
+
 ## How it works
+
 1. A game event fires (hit, kill, take damage, break block, or death).
 2. The plugin scans the player's 6 equipment slots (helmet, chestplate, leggings, boots, main hand, off hand) for attached passive IDs.
 3. `condition` is checked — any failure skips the passive for that event.
 4. A random roll is compared against `chance`.
 5. `cooldown` is checked (per-player, per-passive).
 6. All `actions` execute in order.
+
 **Performance:** the plugin caches the list of passive IDs on a player's gear and only rescans when the player changes an item — attaching passives has no meaningful performance cost even under heavy combat.
+
 ## File structure
+
 Each passive lives in its own `.yml` file inside:
+
 ```
 plugins/YourPlugin/Listener/Passives/
   execute_5pct.yml
@@ -17,9 +24,13 @@ plugins/YourPlugin/Listener/Passives/
   kill_drop_gold.yml
   ...
 ```
+
 The filename doesn't matter — the internal `id` key is what's used. Reload with `/reload` or the plugin's own reload command.
+
 Passives are attached to an item by writing the `id`(s) into the item's persistent data under the key `passive_ids`, via the plugin's item editor. Multiple passives are comma-separated: `execute_5pct,speed_on_hit`.
+
 ## Top-level keys
+
 | Key | Required | Description |
 |---|---|---|
 | `id` | **Yes** | Unique identifier. Must match the ID stored on the item. No spaces. |
@@ -29,8 +40,11 @@ Passives are attached to an item by writing the `id`(s) into the item's persiste
 | `cooldown` | No | Per-player cooldown in seconds. Default `0` (none). Starts counting *after* actions finish executing. |
 | `condition` | No | Condition block (see below). |
 | `actions` | **Yes** | List of actions to execute. |
+
 ## Triggers
+
 All uppercase.
+
 | Trigger | Fires when |
 |---|---|
 | `ON_HIT` | Player deals damage to an entity |
@@ -39,22 +53,32 @@ All uppercase.
 | `HP_THRESHOLD` | Victim's HP drops below a % threshold (requires a separate listener — verify with server admin before use) |
 | `ON_DEATH` | The passive's owning player dies, any cause |
 | `ON_BLOCK_BREAK` | Player breaks a block |
+
 Notes:
 - **ON_DEATH**: `actor` = the player who died (owner). `victim` in context = whoever killed them (may be `null` for environmental deaths). Use `target: VICTIM` in a `DAMAGE` action for "revenge on death" effects.
 - **ON_BLOCK_BREAK**: no victim/combat damage exists; conditions like `must-be-crit` or `{victim_hp}` fail safely. Respects WorldGuard/claims — if the BlockBreakEvent is cancelled, the passive does not run.
+
 ## Conditions
+
 All conditions under `condition:` must pass; any single failure skips the passive.
+
 **`target-type`** — filters the affected entity type:
+
 | Value | Behavior |
 |---|---|
 | `BOTH` | Any entity, player or mob (default) |
 | `PLAYER` | Only when victim is another player |
 | `MOB` | Only when victim is a non-player mob |
 | `SELF` | Only when actor and victim are the same player (self-damage) |
+
 **`must-be-crit`**: `true` to only fire on critical hits.
+
 **`target-hp-percent-below`**: only fires if victim's current HP is below this % of max HP. Supports expressions.
+
 **`expressions`**: list of arbitrary comparisons; all must be true. Supported operators: `>=` `<=` `==` `!=` `>` `<`.
+
 Internal placeholders usable in expressions/conditions:
+
 | Placeholder | Value |
 |---|---|
 | `{damage}` | Damage dealt in this event |
@@ -67,6 +91,7 @@ Internal placeholders usable in expressions/conditions:
 | `{victim_missing_hp}` | Victim's missing HP (Max HP − Current HP) |
 | `{victim_hp_percent}` | Victim's HP as % of max |
 | `%any_papi%` | Any PlaceholderAPI placeholder |
+
 Example:
 ```yaml
 condition:
@@ -77,9 +102,13 @@ condition:
     - "%player_level% >= 10"
     - "{damage} > 5.0"
 ```
+
 > **Known limitation:** each entry in `expressions` supports exactly one `LEFT OP RIGHT` comparison — a single operator per string, checked in this order: `>=`, `<=`, `==`, `!=`, `>`, `<`. Expressions do **not** support comparing two placeholders against each other in a reliable way, and do not support chaining multiple comparisons or logical AND/OR inside one string (e.g. `"10 <= %x% <= 20"` or `"%a% > %b% && %c% < 5"` are not valid). To require multiple conditions, add separate entries to the `expressions` list — they are already ANDed together. Keep each entry to one placeholder/expression on the left and one literal (or simple expression) on the right.
+
 ## Expressions & PlaceholderAPI
+
 `chance`, `duration-seconds`, `amount`, and most numeric keys accept math expressions instead of fixed numbers, including PlaceholderAPI and internal placeholders:
+
 ```yaml
 chance: "50"                    # fixed 50%
 chance: "%player_level% * 2"    # 2% per level, auto-clamped 0–100
@@ -88,29 +117,42 @@ amount: "%player_level% * 0.5"
 duration-seconds: "{damage} / 2"
 ```
 Chance auto-clamps to 0–100 (a result of 200 is treated as 100).
+
 ## Chance & Cooldown
+
 - `chance`: integer or expression. `"100"` = always fires, `"0"` = never fires. The roll happens **after** conditions are checked and **before** the cooldown check.
 - `cooldown`: seconds, per-player, per-passive. `0` = no cooldown. The timer starts counting only **after** the passive finishes executing all of its actions.
+
 ## Actions
+
 Declared as a YAML list under `actions:`. Every action needs a `type`. Most support `target: SELF | VICTIM`.
-Action types: `DAMAGE`, `EFFECT`, `BUFF_STAT`, `HEAL`, `FLAME`, `LAUNCH`, `EXPLODE`, `SUMMON_TNT`, `DROP_ITEM`, `COMMAND`, `MESSAGE`, `SOUND`, `PARTICLE_ANIMATION`, `PARTICLE_PROJECTILE`, `BREAK_AREA`, `DELAY`, `REPEAT`, `HIT_COUNTER`, `STACK_COUNTER`, `ADD_VALUE`, `CHECK_VALUE`, `SUMMON_VANILLA`, `SUMMON_MM`, `TITLE`, `STATUS`, `MYTHIC_SKILL`, `LIGHTNING`, `TARGET_FILTER`, `REVIVE`.
+
+Action types: `DAMAGE`, `EFFECT`, `BUFF_STAT`, `HEAL`, `FLAME`, `LAUNCH`, `EXPLODE`, `SUMMON_TNT`, `DROP_ITEM`, `COMMAND`, `MESSAGE`, `SOUND`, `PARTICLE_ANIMATION`, `PARTICLE_PROJECTILE`, `BREAK_AREA`, `DELAY`, `REPEAT`, `HIT_COUNTER`, `STACK_COUNTER`, `ADD_VALUE`, `CHECK_VALUE`, `SUMMON_VANILLA`, `SUMMON_MM`, `TITLE`, `STATUS`, `MYTHIC_SKILL`, `LIGHTNING`, `TARGET_FILTER`, `REVIVE`, `PROJECTILE_SHOT`, `POTION_ZONE`.
+
+**Choosing `target` correctly:** `SELF` = the passive's owner (the player wearing/holding the item). `VICTIM` = the other entity in the event. `ACTOR` is only a valid alias for `SELF` where an action's table lists it (`SUMMON_TNT`, `ADD_VALUE`, `CHECK_VALUE`, `LIGHTNING`, `POTION_ZONE`); elsewhere an unrecognised value is treated as `VICTIM`, so write `SELF` instead. Most actions also accept `location:` as an alias of `target:`.
+
+**Optional `children` on most actions:** actions that extend the common base (`DAMAGE`, `EFFECT`, `BUFF_STAT`, `HEAL`, `FLAME`, `LAUNCH`, `EXPLODE`, `SUMMON_TNT`, `DROP_ITEM`, `COMMAND`, `MESSAGE`, `SOUND`, `PARTICLE_ANIMATION`, `PARTICLE_PROJECTILE`, `BREAK_AREA`, `ADD_VALUE`, `CHECK_VALUE`, `MYTHIC_SKILL`, `REVIVE`, `STATUS`, `TITLE`, `TARGET_FILTER`) may carry a `children:` list. The children run right after the action itself, but only if the action executed successfully (e.g. a failed `DAMAGE` on a dead target skips its children).
+
 ### DAMAGE
 | Key | Default | Description |
 |---|---|---|
 | target | VICTIM | SELF or VICTIM |
 | amount | 0 | Damage amount. Expression-capable |
 | damage-type | TRUE | NORMAL = fires Bukkit event, reduced by armor. TRUE = true damage, sets HP directly |
+
 ### EFFECT
 Applies a vanilla potion effect.
 | Key | Default | Description |
 |---|---|---|
 | target | SELF | SELF or VICTIM |
-| effect | — | Bukkit PotionEffectType name (SPEED, STRENGTH, SLOWNESS, POISON, REGENERATION, etc.) |
+| effect | — | PotionEffectType name: registry names (SPEED, STRENGTH, SLOWNESS, JUMP_BOOST, `minecraft:haste`) are tried first, then legacy names (INCREASE_DAMAGE, SLOW, FAST_DIGGING). An unknown name logs a warning and the action does nothing |
 | seconds | 5 | Duration. Expression-capable |
 | level | 1 | Effect amplifier level (1 = level I). Expression-capable |
 | ambient | false | Beacon-style subtle particles |
 | particles | true | false hides potion particles |
+
 > EFFECT uses vanilla potion effects. BUFF_STAT (below) changes internal plugin stats instead. For real movement speed, use EFFECT with `effect: SPEED`.
+
 ### BUFF_STAT
 Temporarily buffs an internal plugin stat (added immediately, reverted after duration). Only affects players.
 | Key | Default | Description |
@@ -119,12 +161,14 @@ Temporarily buffs an internal plugin stat (added immediately, reverted after dur
 | stat | — | See Stat List below |
 | amount | 0 | Buff amount (negative = nerf). Expression-capable |
 | duration-seconds | 5 | Seconds until buff is removed. Expression-capable |
+
 ### HEAL
 | Key | Default | Description |
 |---|---|---|
 | target | SELF | SELF or VICTIM |
 | amount | 0 | Flat heal. Expression-capable |
 | percent | 0 | % of max HP; takes priority over `amount` if > 0. Expression-capable |
+
 ### FLAME
 Sets target on fire, dealing damage per second while burning.
 | Key | Default | Description |
@@ -133,6 +177,7 @@ Sets target on fire, dealing damage per second while burning.
 | damage-per-second | 0 | Expression-capable |
 | duration-seconds | 5 | Expression-capable |
 | visual-fire | true | false hides visible flame but damage still applies |
+
 ### LAUNCH
 Knocks the entity along a free vector based on `reference`'s facing direction.
 | Key | Default | Description |
@@ -143,6 +188,7 @@ Knocks the entity along a free vector based on `reference`'s facing direction.
 | side | 0 | Sideways force. Expression-capable |
 | up | 0 | Upward force. Expression-capable |
 | reset-velocity | true | false adds to current velocity instead of overwriting |
+
 ### EXPLODE
 | Key | Default | Description |
 |---|---|---|
@@ -154,20 +200,35 @@ Knocks the entity along a free vector based on `reference`'s facing direction.
 | include-self | false | true = passive owner also takes damage |
 | break-blocks | false | true = explosion breaks blocks (respects WorldGuard) |
 | particle-scale | 1.0 | Multiplier for explosion particle size/spread |
+
 ### SUMMON_TNT
+
 Spawns one or more primed TNT entities at the target location.
-| Key | Default | Description |
-|---|---|---|
-| target | VICTIM | SELF/ACTOR, VICTIM, or BLOCK (ON_BLOCK_BREAK only) |
-| mode | FIXED | FALL (drops from above), SHOOT (launches outward in a random direction), or FIXED (appears in place) |
-| amount | 1 | Number of TNT entities to spawn. Expression-capable |
-| power | 4.0 | Explosion power, only used if `destroy-blocks` is true. Expression-capable |
-| fuse-ticks | 80 | Ticks before detonation (80 = 4s). Expression-capable |
-| destroy-blocks | false | true = explosion breaks blocks; false = entities only |
-| fall-height | 10.0 | (FALL mode) blocks above the origin the TNT spawns at. Expression-capable |
-| shoot-speed | 1.0 | (SHOOT mode) launch speed. Expression-capable |
-| shoot-spread-angle | 45.0 | (SHOOT mode) max upward launch angle in degrees, randomized per TNT |
-| radius | 1.0 | (FIXED mode) scatter radius when `amount` > 1 |
+
+| Key                  | Default  | Description                                                                                   |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `target`             | `VICTIM` | `SELF`/`ACTOR`, `VICTIM`, or `BLOCK` (`ON_BLOCK_BREAK` only)                                  |
+| `mode`               | `FIXED`  | `FALL` (drops from above), `SHOOT` (launches outward randomly), or `FIXED` (appears in place) |
+| `amount`             | `1`      | Number of TNT entities to spawn. Expression-capable                                           |
+| `power`              | `4.0`    | Explosion power, only used if `destroy-blocks` is `true`. Expression-capable                  |
+| `fuse-ticks`         | `80`     | Ticks before detonation (`80` = 4s). Expression-capable                                       |
+| `destroy-blocks`     | `false`  | `true` = explosion breaks blocks; `false` = entities only                                     |
+| `fall-height`        | `10.0`   | (`FALL` mode) Blocks above the origin where TNT spawns. Expression-capable                    |
+| `shoot-speed`        | `1.0`    | (`SHOOT` mode) Launch speed. Expression-capable                                               |
+| `shoot-spread-angle` | `45.0`   | (`SHOOT` mode) Maximum upward launch angle in degrees, randomized per TNT. Expression-capable |
+| `radius`             | `1.0`    | (`FIXED` mode) Scatter radius when `amount` > 1                                               |
+| `damage`             | `6.0`    | Damage dealt when TNT detonates. Expression-capable                                           |
+| `damage-radius`      | `4.0`    | Radius around TNT used to find targets. Expression-capable                                    |
+| `damage-type`        | `TRUE`   | `TRUE` directly reduces health; `NORMAL` uses normal Bukkit damage                            |
+| `include-self`       | `false`  | Whether the actor can be damaged by the TNT                                                   |
+| `particle-scale`     | `1.5`    | Explosion particle scale                                                                      |
+
+**Notes:**
+
+* `damage` is applied when the TNT detonates, independently of block destruction.
+* `damage-type: NORMAL` uses Bukkit's normal damage system; `TRUE` directly reduces health.
+
+
 ```yaml
 - type: SUMMON_TNT
   target: VICTIM
@@ -178,13 +239,16 @@ Spawns one or more primed TNT entities at the target location.
   shoot-speed: "1.2"
   shoot-spread-angle: "60"
 ```
+
 > The TNT's source is set to the passive's owner, so kill credit/attribution works normally. `destroy-blocks: false` still lets the blast damage/knock back entities — it only suppresses terrain destruction.
+
 ### DROP_ITEM
 | Key | Default | Description |
 |---|---|---|
 | target | VICTIM | SELF or VICTIM |
 | material | GOLD_NUGGET | Bukkit material name |
 | amount | 1 | Supports ranges (`"1-3"`), expressions, PAPI; ranges also support expressions (`"1-%player_level%"`) |
+
 ### COMMAND
 General-purpose escape hatch for anything without a dedicated mechanic (give items, economy, other plugins, etc).
 | Key | Default | Description |
@@ -192,15 +256,20 @@ General-purpose escape hatch for anything without a dedicated mechanic (give ite
 | target | SELF | Entity substituted for `{player}` |
 | mode | OP | OP = console runs with full permissions. PLAYER = target runs it, limited by their permissions |
 | command | — | Command to run, no leading `/` |
+
 Placeholders in `command`: `{player}` (target name), `{actor}` (owner name), `{damage}` (1 decimal).
+
 ### MESSAGE
 Sends a private chat message. Only works if target resolves to a player.
 | Key | Default | Description |
 |---|---|---|
 | target | SELF | SELF or VICTIM |
 | message | — | Supports `&`-color codes |
+
 Placeholders: `{actor_name}`, `{victim_name}`, `{damage}`.
+
 > The canonical content key for this action is `message` (per the table above). When generating configs, always use `message` — don't substitute `text`.
+
 ### SOUND
 | Key | Default | Description |
 |---|---|---|
@@ -208,6 +277,7 @@ Placeholders: `{actor_name}`, `{victim_name}`, `{damage}`.
 | sound | — | Bukkit Sound enum name |
 | volume | 1.0 | |
 | pitch | 1.0 | 0.5–2.0 |
+
 ### PARTICLE_ANIMATION
 Circular/spherical particle effect around a target over time. Supports offsetting the effect's center relative to the target's height and facing direction.
 | Key | Default | Description |
@@ -226,9 +296,12 @@ Circular/spherical particle effect around a target over time. Supports offsettin
 | rotate | true | false = static effect |
 | dust-color | #FF5500 | Hex color, used when particle is DUST |
 | block-material | OAK_LEAVES | Used when particle is BLOCK or FALLING_DUST |
+
 > **Offset mechanics:** `forward-offset` and `side-offset` are recalculated every tick from the target's current horizontal facing (yaw). If the target turns or moves while the effect is running, the effect immediately follows the new facing direction instead of staying locked to the original one.
+
 ### PARTICLE_PROJECTILE
 Fires a particle projectile toward the victim; on hit, deals damage and can trigger impact/trail effects.
+
 Flight/control:
 | Key | Default | Description |
 |---|---|---|
@@ -242,6 +315,7 @@ Flight/control:
 | immediate-impact | false | true = skip flight, impact immediately at location |
 | dust-color | #FFAA00 | For DUST particle |
 | block-material | MAGMA_BLOCK | For BLOCK/FALLING_DUST |
+
 Flight shape & sweep:
 | Key | Default | Description |
 |---|---|---|
@@ -254,6 +328,7 @@ Flight shape & sweep:
 | flight-grow-steps | 20 | Steps to reach max size. Expression-capable |
 | sweep-attack | false | Enable SWEEP_ATTACK effect along flight path |
 | sweep-attack-interval | 4 | Tick interval for sweep spawn |
+
 Impact effect:
 | Key | Default | Description |
 |---|---|---|
@@ -261,7 +336,13 @@ Impact effect:
 | impact-radius | 3.0 | Expression-capable |
 | impact-duration-ticks | 15 | Expression-capable |
 | impact-damage | same as `amount` | Damage per impact tick. Expression-capable |
+| impact-damage-type | same as `damage-type` | NORMAL or TRUE, applied to impact damage |
+| impact-particle | same as `particle` | Particle type used for the impact visual |
+| impact-points | 30 | Number of particle points drawn for the impact visual. Expression-capable |
+| impact-particle-per-point | 2 | Particles spawned at each impact point. Expression-capable |
+
 > Impact damage decays over time (`0.35 / (1 + tick/5.0)`). Each entity takes impact damage at most once per 3 ticks. Impact shape only affects visuals — the damage area is always a sphere controlled by `impact-radius`.
+
 ### BREAK_AREA
 Digs out extra blocks around the block just broken. Only valid with `ON_BLOCK_BREAK`. Respects WorldGuard/claims; drops respect tool enchants.
 | Key | Default | Description |
@@ -270,13 +351,16 @@ Digs out extra blocks around the block just broken. Only valid with `ON_BLOCK_BR
 | depth | 1 | Additional depth on Y axis. Expression-capable |
 | use-tool-drops | true | true = drops respect Fortune/Silk Touch; false = default drops |
 | excluded-materials | BEDROCK,BARRIER,... | Comma-separated blocks that can't be dug |
+
 ### DELAY
 Waits N seconds, then runs `children`.
 | Key | Default | Description |
 |---|---|---|
 | seconds | 1 | Wait time. Expression-capable |
 | children | — | Action list, same syntax as `actions:` |
+
 > Don't nest a DELAY as a plain action inside another DELAY/REPEAT — DELAY manages its own children, and nested children only run once after the wait.
+
 ### REPEAT
 Repeats the entire `children` list, spaced `interval-seconds` apart, `times` total.
 | Key | Default | Description |
@@ -284,6 +368,7 @@ Repeats the entire `children` list, spaced `interval-seconds` apart, `times` tot
 | times | 1 | Expression-capable |
 | interval-seconds | 1 | Expression-capable |
 | children | — | Action list to repeat |
+
 ### HIT_COUNTER
 Counts event occurrences and only fires `children` once the `every` threshold is reached.
 | Key | Default | Description |
@@ -291,6 +376,7 @@ Counts event occurrences and only fires `children` once the `every` threshold is
 | every | 5 | Triggers needed to fire children. Expression-capable |
 | reset-after | same as `every` | Max triggers before counter auto-resets |
 | children | — | Actions to run at threshold |
+
 ### STACK_COUNTER
 Tracks a per-player accumulating stack count. At defined `milestones`, runs the matching children. Supports idle-timeout auto-reset as well as auto-reset on special events (death, quit).
 | Key | Default | Description |
@@ -302,6 +388,7 @@ Tracks a per-player accumulating stack count. At defined `milestones`, runs the 
 | on-death | true | If true, resets the stack to 0 as soon as the player dies |
 | on-empty | — | Action list to run whenever the stack decays back to 0 |
 | milestones | — | Map of stack-count → child action list |
+
 ```yaml
 - type: STACK_COUNTER
   max-stacks: "5"
@@ -325,6 +412,7 @@ Tracks a per-player accumulating stack count. At defined `milestones`, runs the 
         power: "4.0"
 ```
 Each trigger refreshes the `decay-seconds` timer; reaching an exact milestone count fires its children; if the decay timer expires without a new trigger, the stack resets to 0 and `on-empty` fires; per-player state is also cleaned up automatically on logout/death when `on-quit`/`on-death` are enabled.
+
 ### ADD_VALUE
 Adds a numeric amount to a keyed value stored on the target, creating it at `0` if not already present. Each trigger also resets the expiry countdown — a lighter-weight alternative to `STACK_COUNTER` when you don't need milestones, just a raw accumulating number that `CHECK_VALUE` can later read.
 | Key | Default | Description |
@@ -333,6 +421,7 @@ Adds a numeric amount to a keyed value stored on the target, creating it at `0` 
 | key | — | Identifier for the stored value. Shared across any passive that reads/writes the same key on the same entity |
 | amount | 1 | Amount to add (negative to subtract). Expression-capable |
 | duration | 0 | Seconds until the value expires and resets to nothing. `0` = never expires on its own. Expression-capable |
+
 ```yaml
 - type: ADD_VALUE
   target: ACTOR
@@ -340,7 +429,9 @@ Adds a numeric amount to a keyed value stored on the target, creating it at `0` 
   amount: "1"
   duration: "8"
 ```
+
 > Re-triggering before expiry adds to the existing total and restarts the `duration` countdown — it does not overwrite or reset the count to `amount`.
+
 ### CHECK_VALUE
 Reads a keyed value previously set by `ADD_VALUE`, compares it against a threshold, and only runs the child `actions` if the comparison passes. If the key doesn't exist (never set, or expired), the mechanic simply returns without running anything.
 | Key | Default | Description |
@@ -351,6 +442,7 @@ Reads a keyed value previously set by `ADD_VALUE`, compares it against a thresho
 | value | 1 | Threshold to compare the stored value against. Expression-capable |
 | consume | false | true = clear the stored value once the check passes (e.g. spend the stacks) |
 | actions | — | Child action list to run if the comparison passes |
+
 ```yaml
 - type: CHECK_VALUE
   target: ACTOR
@@ -364,7 +456,9 @@ Reads a keyed value previously set by `ADD_VALUE`, compares it against a thresho
       amount: "15"
       damage-type: TRUE
 ```
+
 > Pairs with `ADD_VALUE` for combo/stack-threshold effects. `consume: true` clears the key entirely on success (use this for "spend the stacks on payoff" designs); leave it `false` if the value should keep accumulating past the threshold.
+
 ### SUMMON_VANILLA
 Summons a vanilla Minecraft entity at the target location.
 | Key | Default | Description |
@@ -375,6 +469,7 @@ Summons a vanilla Minecraft entity at the target location.
 | speed | 1.0 | Movement speed multiplier |
 | target | VICTIM | SELF or VICTIM |
 | on-death | — | Optional action list run when the summoned mob dies |
+
 ### SUMMON_MM
 Summons a MythicMobs entity with level/attribute overrides.
 | Key | Default | Description |
@@ -386,6 +481,7 @@ Summons a MythicMobs entity with level/attribute overrides.
 | speed | 1.0 | Multiplier (2 = 200%) |
 | target | VICTIM | SELF or VICTIM |
 | on-death | — | Optional action list run when the mob dies |
+
 ### TITLE
 Sends a Title/Subtitle to the target player. Leave content blank to hide that part.
 | Key | Default | Description |
@@ -396,7 +492,9 @@ Sends a Title/Subtitle to the target player. Leave content blank to hide that pa
 | fade-in | 10 | Ticks. Expression-capable (evaluated against actor) |
 | stay | 70 | Ticks. Expression-capable (actor) |
 | fade-out | 20 | Ticks. Expression-capable (actor) |
+
 > Text placeholders resolve against `target` (recipient); timing values resolve against `actor` (skill owner).
+
 ### STATUS
 Applies a temporary special status: `STUN`, `ROOT`, `DISARM`, or `INVINCIBLE`. Automatically cleans up prior tasks on re-apply.
 | Key | Default | Description |
@@ -404,25 +502,32 @@ Applies a temporary special status: `STUN`, `ROOT`, `DISARM`, or `INVINCIBLE`. A
 | target | VICTIM | SELF or VICTIM |
 | status | — | STUN, ROOT, DISARM, or INVINCIBLE |
 | duration | 3 | Seconds. Number, expression, or PAPI |
+
 - `STUN`: fully locks the target down — Slowness 255, walk speed locked to 0, a per-tick task that also locks look direction (yaw/pitch), and blocks the target from dealing damage or attacking entirely.
 - `ROOT`: locks movement **only** (Slowness 255 + walk speed 0). The target can still freely look around and attack.
 - `DISARM`: prevents the target from dealing damage (checked via metadata in the damage event).
 - `INVINCIBLE`: temporary invulnerability, blocks all incoming damage.
+
 ### MYTHIC_SKILL
 Casts a MythicMobs skill (defined under `MythicMobs/Skills/<file>.yml`) directly when the passive fires.
+
 **External dependency:** requires the MythicMobs plugin on the server. If it's missing, the mechanic logs a single warning at startup and safely no-ops without crashing the server.
+
 **On damage scaling:** MythicMobs doesn't expose a way to alter skill damage directly via external API. `damage-multiplier` is passed through the `power` parameter of MythicMobs' `castSkill()` call, so it only has an effect if the target skill file's mechanic has `power: true` enabled.
+
 | Key | Default | Description |
 |---|---|---|
 | target | VICTIM | SELF or VICTIM — the entity the skill is cast from/at |
 | skill | — | Skill name, matching an ID in `MythicMobs/Skills/` |
 | damage-multiplier | 1.0 | Damage multiplier for the skill. Expression/PAPI-capable (e.g. `"%player_level% * 0.1 + 1"`) |
+
 ```yaml
 - type: MYTHIC_SKILL
   target: VICTIM
   skill: "fireball_explosion"
   damage-multiplier: "%player_level% * 0.2 + 1.0"
 ```
+
 ### LIGHTNING
 Strikes the target with lightning, with optional damage, burning, and a visual-only mode.
 | Key | Default | Description |
@@ -432,6 +537,7 @@ Strikes the target with lightning, with optional damage, burning, and a visual-o
 | causes-burning | false | true/false — whether the strike sets the target on fire |
 | fire-ticks | 100 | Burn duration in ticks if `causes-burning` is true (100 ticks = 5s) |
 | visual-only | false | true = only play the lightning visual/sound, without real damage or fire |
+
 ```yaml
 - type: LIGHTNING
   target: VICTIM
@@ -440,7 +546,9 @@ Strikes the target with lightning, with optional damage, burning, and a visual-o
   fire-ticks: "100"
   visual-only: false
 ```
+
 > When `visual-only` is false, a real vanilla lightning bolt is used. If `causes-burning` is false, the plugin immediately extinguishes the target after the strike so it isn't set on fire unintentionally.
+
 ### TARGET_FILTER
 Checks and filters the target's type (player, vanilla mob, or MythicMobs mob). Only if the target matches an entry in `types` do the child `actions` run.
 | Key | Default | Description |
@@ -448,7 +556,9 @@ Checks and filters the target's type (player, vanilla mob, or MythicMobs mob). O
 | target | VICTIM | SELF or VICTIM — entity to type-check |
 | types | — | List of allowed target types/keywords (see below) |
 | actions | — | Child action list to run if the target passes the filter |
+
 Supported values/syntax for `types`:
+
 | Value / syntax | Example | Description |
 |---|---|---|
 | `PLAYER` | `PLAYER` | Matches if the target is a Player |
@@ -456,6 +566,7 @@ Supported values/syntax for `types`:
 | `ALL_MM` | `ALL_MM` | Matches any MythicMobs-spawned mob |
 | `MM_<ID>` | `MM_SKELETON_KING` | Matches a specific MythicMobs internal name exactly (prefix `MM_` + mob ID). Case-insensitive |
 | `<ENTITY_TYPE>` | `ZOMBIE`, `ENDERMAN` | Matches a vanilla Spigot/Paper EntityType name |
+
 ```yaml
 - type: TARGET_FILTER
   target: VICTIM
@@ -470,9 +581,11 @@ Supported values/syntax for `types`:
       target: SELF
       message: "&aHit a valid target!"
 ```
+
 - Check order: Player → MythicMobs (if installed) → vanilla mobs.
 - For MythicMobs targets, `ALL_MM` / `MM_<ID>` are checked before falling back to vanilla-type matching.
 - If `types` is empty/missing or `actions` is empty, the mechanic logs a warning and does nothing.
+
 ### REVIVE
 A "guardian" mechanic that protects the player from a killing blow. When the player would take fatal damage, that damage is cancelled, the player is saved, and a chain of child `actions` fires immediately.
 | Key | Default | Description |
@@ -481,6 +594,7 @@ A "guardian" mechanic that protects the player from a killing blow. When the pla
 | duration-seconds | 10 | How long the protection stays active. Set to `0` or omit for **permanent** protection until it triggers. Expression/PAPI-capable |
 | revive-health-percent | 50 | % of max HP restored the instant the player is saved. Set to `0` or omit to leave current HP unchanged. Expression/PAPI-capable |
 | actions | — | Child actions that run automatically the moment the player is revived |
+
 Minimal example (permanent protection + brief invincibility, no timer task, no heal):
 ```yaml
 - type: REVIVE
@@ -494,6 +608,7 @@ Minimal example (permanent protection + brief invincibility, no timer task, no h
       target: SELF
       message: "&d&lYour guardian spirit saved you!"
 ```
+
 Full example (10s protection window + auto-heal 50% + effect):
 ```yaml
 - type: REVIVE
@@ -509,14 +624,88 @@ Full example (10s protection window + auto-heal 50% + effect):
       target: SELF
       message: "&d&lYou were revived!"
 ```
+
 Mechanics & notes:
 - **Consumed on trigger:** the protection disappears automatically the first time it saves the player.
 - **Performance:** when `duration-seconds` is unset (or `0`), no countdown task is created at all, minimizing overhead.
 - **Safe re-trigger:** re-applying REVIVE while protection is already active simply refreshes the existing timer instead of stacking.
 - **Auto cleanup:** if the player disconnects, the countdown task and protection state are cleaned up automatically.
 - **Players only:** this mechanic is ignored if `target` resolves to a vanilla/MythicMobs mob.
+
+### PROJECTILE_SHOT
+Fires one or more real Minecraft projectiles from the player's eyes in a horizontal fan centered on the look direction. A custom damage value is stored on each projectile and applied when it hits a living entity.
+
+**External requirement:** `ProjectileShotDamageListener` must be registered once in the plugin's `onEnable`; without it the projectile still flies but the custom `damage` is never applied.
+
+| Key | Default | Description |
+|---|---|---|
+| projectile | SNOWBALL | `SNOWBALL`, `EGG`, `ARROW`, `SPECTRAL_ARROW`, `WITHER_SKULL`, `SMALL_FIREBALL`, `FIREBALL` (alias `LARGE_FIREBALL`), `DRAGON_FIREBALL`, `SHULKER_BULLET`, `LLAMA_SPIT`, `ENDER_PEARL`, `TRIDENT`. An unknown value logs a warning and nothing is fired |
+| damage | 0 | Damage applied when the projectile hits a living entity. `0` = keep the projectile's own default damage. Expression-capable |
+| amount | 1 | Projectiles per cast (minimum 1). Expression-capable |
+| spread-angle | 10 | Horizontal angle in degrees between two neighbouring projectiles; the whole fan is centered on the look direction, so it only matters when `amount` > 1. Expression-capable |
+| speed | 1.5 | Launch speed. Expression-capable |
+| gravity | true | false = projectile flies straight instead of dropping |
+
+> This action has no `target` — it always fires from the passive's owner.
+
+```yaml
+- type: PROJECTILE_SHOT
+  projectile: SNOWBALL
+  damage: "%player_level% * 0.5 + 4"
+  amount: "3"
+  spread-angle: "15"
+  speed: "1.5"
+  gravity: false
+```
+
+### POTION_ZONE
+Throws a splash potion toward a point; when it lands it creates a lingering effect cloud that applies the configured potion effects to everything standing in it. The destination is **snapshotted when the passive fires**, so the zone still appears even if the victim died before the potion landed.
+
+**External requirement:** `PotionZoneImpactListener` must be registered once in the plugin's `onEnable`; it is what turns the landed potion into the cloud. A potion that has not landed within 30 seconds is forgotten.
+
+| Key | Default | Description |
+|---|---|---|
+| target | VICTIM | `VICTIM` = throw toward the victim's position, `ACTOR` = toward the owner's position. Any other value logs a warning and falls back to `VICTIM` |
+| speed | 0.6 | Throw speed (minimum 0.05). The potion is thrown in a slight arc. Expression-capable |
+| radius | 3 | Cloud radius (minimum 0.5). Expression-capable |
+| duration-seconds | 8 | How long the cloud stays on the ground. Expression-capable |
+| reapplication-delay-ticks | 20 | Ticks between two applications of the effects to the same entity (minimum 1; 20 = 1 second) |
+| color | — | Optional particle color as `"R,G,B"`, each 0–255 (e.g. `"255,0,0"`). Malformed values are ignored with a warning |
+| particle | — | Optional particle type of the cloud (e.g. `ENTITY_EFFECT`) |
+| effects | — | **Required.** List of potion effects (see below). With no valid entry the cloud is created but does nothing |
+
+Each entry of `effects`:
+| Key | Default | Description |
+|---|---|---|
+| type | — | Potion effect name (same lookup as `EFFECT`: registry names, then legacy names). Invalid entries are skipped with a warning |
+| amplifier | 0 | Effect amplifier, **0 = level I** (note: this differs from `EFFECT.level`, where 1 = level I). Expression-capable |
+| duration-seconds | 4 | Duration of each application. Expression-capable |
+| ambient | false | Beacon-style subtle particles |
+| particles | true | false hides potion particles |
+| icon | true | false hides the effect icon on the HUD |
+
+```yaml
+- type: POTION_ZONE
+  target: VICTIM
+  speed: "0.6"
+  radius: "3"
+  duration-seconds: "8"
+  reapplication-delay-ticks: 20
+  color: "80,0,120"
+  particle: ENTITY_EFFECT
+  effects:
+    - type: POISON
+      amplifier: "1"
+      duration-seconds: "4"
+    - type: SLOWNESS
+      amplifier: "0"
+      duration-seconds: "4"
+```
+
 ## Impact Shapes (PARTICLE_PROJECTILE)
+
 Configured via `impact-shape`. Only affects the visual — the damage area is always a sphere controlled by `impact-radius`.
+
 | Shape | Description |
 |---|---|
 | `NONE` | No visual; damage still applies if `impact-damage` is set |
@@ -524,9 +713,13 @@ Configured via `impact-shape`. Only affects the visual — the damage area is al
 | `SPHERE` | Evenly expanding 3D sphere |
 | `BURST` | Particles fired outward in all directions like an explosion |
 | `TORNADO` | Rising spiral column for the effect's duration |
+
 ## Stat List (for BUFF_STAT)
+
 `damage`, `pve_damage`, `pvp_damage`, `all_damage`, `bow_damage`, `magic_damage`, `true_damage`, `death_damage`, `critical_chance`, `critical_damage`, `critical_damage_reduction`, `lifesteal`, `penetration`, `armor_pen`, `accuracy`, `damage_reduction`, `armor`, `pve_defense`, `pvp_defense`, `all_defense`, `magic_defense`, `dodge_rate`, `block_rate`, `thorns`, `knockback_resistance`, `max_mana`, `mana_regen`, `health_regen`, `exp_bonus`, `movement_speed`, `health`
+
 ## Full Examples
+
 **Speed on hit (80% chance):**
 ```yaml
 id: speed_on_hit
@@ -544,6 +737,7 @@ actions:
     level: "2"
     particles: false
 ```
+
 **Execute below 5% HP:**
 ```yaml
 id: execute_5pct
@@ -567,6 +761,7 @@ actions:
     sound: ENTITY_PLAYER_LEVELUP
     pitch: 2.0
 ```
+
 **Fire orb on crit, projectile + sphere impact:**
 ```yaml
 id: fire_orb
@@ -592,6 +787,7 @@ actions:
     impact-damage: "3"
     impact-damage-type: TRUE
 ```
+
 **Revenge on death — damage the killer:**
 ```yaml
 id: revenge_on_death
@@ -610,6 +806,7 @@ actions:
     target: VICTIM
     message: "&4[Revenge] &7{actor_name} struck back from beyond the grave!"
 ```
+
 **Delayed explosion (2s after kill):**
 ```yaml
 id: delayed_explode
@@ -635,6 +832,7 @@ actions:
         target: SELF
         sound: ENTITY_GENERIC_EXPLODE
 ```
+
 **TNT pickaxe — 3×3 dig on block break:**
 ```yaml
 id: tnt_pickaxe
@@ -649,6 +847,7 @@ actions:
     use-tool-drops: true
     excluded-materials: "BEDROCK,BARRIER"
 ```
+
 **Repeating poison — 4 ticks, 1s apart:**
 ```yaml
 id: repeat_poison
@@ -677,6 +876,7 @@ actions:
         radius: "0.8"
         duration-seconds: "1"
 ```
+
 **Gold drop — 25% on mob kill:**
 ```yaml
 id: kill_drop_gold
@@ -691,6 +891,7 @@ actions:
     material: GOLD_NUGGET
     amount: "1-3"
 ```
+
 **Guardian angel — auto-revive with heal (STACK_COUNTER-free, single passive):**
 ```yaml
 id: guardian_angel
@@ -712,6 +913,7 @@ actions:
         target: SELF
         message: "&d&lYou were revived!"
 ```
+
 **Thunder step — filtered lightning strike on zombies/players only:**
 ```yaml
 id: thunder_step
@@ -732,6 +934,7 @@ actions:
         causes-burning: true
         fire-ticks: "100"
 ```
+
 **Combo finisher — 5 hits in 8s triggers a bonus strike:**
 ```yaml
 id: combo_finisher
@@ -763,6 +966,7 @@ actions:
         target: SELF
         message: "&c[Combo Finisher] &7Unleashed!"
 ```
+
 **TNT barrage on kill — scatter shrapnel TNT that doesn't touch terrain:**
 ```yaml
 id: tnt_barrage
@@ -780,8 +984,70 @@ actions:
     shoot-speed: "1.3"
     shoot-spread-angle: "50"
 ```
+
+**Frost shotgun — fan of snowballs on crit:**
+```yaml
+id: frost_shotgun
+display-name: "&b[Frost Shotgun]"
+trigger: ON_HIT
+condition:
+  must-be-crit: true
+chance: "35"
+cooldown: 6
+actions:
+  - type: PROJECTILE_SHOT
+    projectile: SNOWBALL
+    damage: "6"
+    amount: "5"
+    spread-angle: "12"
+    speed: "1.6"
+    gravity: false
+  - type: SOUND
+    target: SELF
+    sound: ENTITY_SNOWBALL_THROW
+```
+
+**Toxic cloud — poison zone where the victim stood (works even if it died):**
+```yaml
+id: toxic_cloud
+display-name: "&2[Toxic Cloud]"
+trigger: ON_KILL
+condition:
+  target-type: MOB
+chance: "40"
+cooldown: 10
+actions:
+  - type: POTION_ZONE
+    target: VICTIM
+    radius: "3"
+    duration-seconds: "8"
+    color: "40,160,40"
+    effects:
+      - type: POISON
+        amplifier: "1"
+        duration-seconds: "4"
+      - type: SLOWNESS
+        amplifier: "0"
+        duration-seconds: "4"
+```
+
 ---
+
+### Common mistakes
+
+- **Unquoted expressions.** `amount: %player_level% * 2` is invalid YAML (`%` starts a directive). Always quote: `amount: "%player_level% * 2"`.
+- **Wrong text key in MESSAGE.** The key is `message`, not `text`.
+- **`ACTOR` on an action that does not list it.** It is silently treated as `VICTIM`. Use `SELF`.
+- **Multiple comparisons in one expression string.** One `LEFT OP RIGHT` per entry; add more entries instead.
+- **`BREAK_AREA` / `target: BLOCK` outside `ON_BLOCK_BREAK`.** They need a broken block; other triggers have none.
+- **`level` vs `amplifier`.** `EFFECT.level` 1 = level I; `POTION_ZONE` effect `amplifier` 0 = level I.
+- **Expecting a cooldown to start immediately.** It starts only after every action (including slow ones) has been *started* by the passive; `DELAY` children run later and are not waited for.
+- **Console warnings.** Invalid `id`, `trigger`, `type`, effect names, particle names and `color` values are logged with the `[Passive]` prefix; check the console after a reload if a passive does nothing.
+
+---
+
 ### Instructions for the AI generating a config
+
 When asked to create a passive ability config from this reference:
 1. Always include `id`, `trigger`, and `actions` (required).
 2. Pick the correct `trigger` for the described event.
